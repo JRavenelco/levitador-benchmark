@@ -1,0 +1,11 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/4039558249_1668787756_223132457.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_2504213364_3914530825.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_2851211902_3925774931.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_1029221706_1272894856.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_3228692125_1352675008.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_1145842310_738460969.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_4150368384_3944232597.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_1599099410_942813665.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_3453799404_2403983235.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark/480p15/partial_movie_files/Scene2_Fisica/3060765881_2844360058_3752247986.mp4'

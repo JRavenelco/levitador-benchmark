@@ -1,0 +1,11 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/4039558249_4056486305_223132457.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_1023805260_2702875950.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_2353494269_759473699.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_793741497_1079067450.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_1282711174_3388556231.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_1145842310_1787156940.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_4150368384_1139784563.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_1599099410_2610536641.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_2508756761_208921468.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v3/480p15/partial_movie_files/Scene2_Fisica/3060765881_2844360058_2895953337.mp4'

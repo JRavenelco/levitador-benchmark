@@ -1,0 +1,11 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/4039558249_645788566_223132457.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_3849784585_1469304459.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_2353494269_1591116755.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_127694251_2229110163.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_741907256_32922580.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_1145842310_1706479557.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_4150368384_1006134605.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_1599099410_3433435107.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_2508756761_3779195906.mp4'
+file 'file:C:/Users/jesus/Documents/Doctorado/Experimentos/CRio DAQ/cDAQ_9174/levitador-benchmark/media/videos/manim_benchmark_v2/480p15/partial_movie_files/Scene1_FisicaDinamica/3060765881_2844360058_2015799260.mp4'
