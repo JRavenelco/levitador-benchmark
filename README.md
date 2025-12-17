@@ -268,6 +268,45 @@ Los algoritmos bien sintonizados deberían converger a soluciones cercanas con M
 
 ---
 
+## 🔬 Diseño de Experimentos (DOE)
+
+El repositorio incluye un DOE estructurado para generar datos experimentales diversos.
+
+### Experimentos Disponibles
+
+| Fase | Experimentos | Descripción |
+|------|--------------|-------------|
+| **1** | E01, E02, E07, E08, E11 | Caracterización básica (escalones, senoidales) |
+| **2** | E03-E06, E09-E10 | Caracterización extendida (rampas, pulsos) |
+| **3** | V01-V06 | Validación (repeticiones) |
+| **4** | E12 | Robustez (PRBS) |
+
+### Ejecutar Experimentos
+
+```bash
+# Listar experimentos disponibles
+python experimentos_doe.py --listar
+
+# Ejecutar en modo simulación (sin hardware)
+python experimentos_doe.py --fase 1 --simular
+
+# Ejecutar experimento específico
+python experimentos_doe.py --experimento E01
+
+# Ejecutar todos los experimentos
+python experimentos_doe.py --todos
+```
+
+### Documentación Completa
+
+Ver [docs/DOE_experimentos.md](docs/DOE_experimentos.md) para:
+- Definición de factores y niveles
+- Protocolo experimental
+- Métricas a calcular
+- Análisis posterior
+
+---
+
 ## 🤝 Contribuciones
 
 ¡Las contribuciones son bienvenidas! Si usas este benchmark en tu investigación:
