@@ -283,10 +283,9 @@ Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ## 📧 Contacto
 
-- **Autor:** Jesús
-- **Institución:** Doctorado
-- **Email:** [tu-email@ejemplo.com]
+- **Autor:** [Jesús](https://orcid.org/0000-0002-6183-7379)
+- **Institución:** Doctorado UAQ
+- **Email:** [jesus.santana@uaq.mx]
 
 ---
 
-*Desarrollado como parte de investigación doctoral en sistemas de control y física computacional.*
