@@ -66,7 +66,7 @@ Encontrar $[k_0, k, a]$ que minimicen el **Error Cuadrático Medio (MSE)** entre
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/tu-usuario/levitador-benchmark.git
+git clone https://github.com/JRavenelco/levitador-benchmark.git
 cd levitador-benchmark
 
 # Instalar dependencias
@@ -95,7 +95,17 @@ print(f"Error MSE: {error:.6e}")
 ### Con Datos Experimentales Reales
 
 ```python
-problema = LevitadorBenchmark("datos_levitador.txt")
+problema = LevitadorBenchmark("data/datos_levitador.txt")
+```
+
+### Control de Reproducibilidad
+
+```python
+# Usar semilla para resultados reproducibles
+problema = LevitadorBenchmark(random_seed=42)
+
+# Configurar nivel de ruido para datos sintéticos
+problema = LevitadorBenchmark(noise_level=1e-4, random_seed=42)
 ```
 
 ### Integración con Algoritmos de Optimización
@@ -195,7 +205,6 @@ mejor_solucion = [0.0363, 0.0035, 0.0052]
 problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 ```
 
-![Ejemplo de resultado](docs/ejemplo_resultado.png)
 
 ---
 
@@ -204,14 +213,21 @@ problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 ```
 levitador-benchmark/
 ├── README.md                    # Este archivo
+├── LICENSE                      # Licencia MIT
+├── requirements.txt             # Dependencias del proyecto
 ├── levitador_benchmark.py       # Clase principal del benchmark
-├── example_optimization.py      # Ejemplos de uso
+├── example_optimization.py      # Ejemplos de algoritmos
+├── tutorial_metaheuristicas.ipynb  # Notebook tutorial interactivo
 ├── data/
 │   └── datos_levitador.txt      # Datos experimentales reales
 ├── docs/
-│   └── fisica_levitador.md      # Documentación física detallada
-└── tests/
-    └── test_benchmark.py        # Tests unitarios
+│   └── formato_datos.md         # Descripción del formato de datos
+├── tests/
+│   └── test_benchmark.py        # Tests unitarios (pytest)
+└── videos/                      # Videos explicativos
+    ├── 01_problema_fisico.mp4
+    ├── 02_funcion_fitness.mp4
+    └── 03_como_optimizar.mp4
 ```
 
 ---
@@ -266,10 +282,11 @@ Los algoritmos bien sintonizados deberían converger a soluciones cercanas con M
 
 ```bibtex
 @software{levitador_benchmark,
-  author = {Jesús},
-  title = {Levitador Magnético Benchmark},
+  author = {Santana-Vilchis, Jesús},
+  title = {Levitador Magnético Benchmark: Problema de Optimización Real para Metaheurísticas},
   year = {2024},
-  url = {https://github.com/tu-usuario/levitador-benchmark}
+  url = {https://github.com/JRavenelco/levitador-benchmark},
+  note = {Universidad Autónoma de Querétaro}
 }
 ```
 

@@ -15,6 +15,15 @@ import numpy as np
 from scipy.integrate import odeint
 from pathlib import Path
 from typing import Tuple, List, Optional
+import logging
+
+# Configurar logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+    logger.addHandler(handler)
 
 
 class LevitadorBenchmark:
@@ -39,14 +48,26 @@ class LevitadorBenchmark:
         >>> error = problema.fitness_function([0.036, 0.0035, 0.005])
     """
     
-    def __init__(self, datos_reales_path: Optional[str] = None):
+    def __init__(self, datos_reales_path: Optional[str] = None, random_seed: Optional[int] = None,
+                 noise_level: float = 1e-5, verbose: bool = True):
         """
         Inicializa el benchmark.
         
         Args:
             datos_reales_path: Ruta al archivo de datos experimentales.
                                Si es None, usa datos sintéticos de ejemplo.
+            random_seed: Semilla para reproducibilidad. Si es None, usa estado aleatorio.
+            noise_level: Nivel de ruido para datos sintéticos (desviación estándar).
+            verbose: Si True, muestra mensajes de información.
         """
+        self._verbose = verbose
+        self._noise_level = noise_level
+        
+        # Configurar generador de números aleatorios para reproducibilidad
+        if random_seed is not None:
+            self._rng = np.random.default_rng(random_seed)
+        else:
+            self._rng = np.random.default_rng()
         # Constantes Físicas Fijas (no se optimizan) - DEFINIR PRIMERO
         self.m = 0.018  # Masa de la esfera [kg]
         self.g = 9.81   # Gravedad [m/s²]
@@ -89,18 +110,20 @@ class LevitadorBenchmark:
             self.i_real = df["ie"].to_numpy(dtype=np.float64)
             self.u_real = df["u"].to_numpy(dtype=np.float64)
             
-            print(f"✓ Datos cargados: {len(self.t_real)} puntos")
-            print(f"  Rango temporal: [{self.t_real[0]:.3f}, {self.t_real[-1]:.3f}] s")
-            print(f"  Rango posición: [{self.y_real.min()*1000:.2f}, {self.y_real.max()*1000:.2f}] mm")
+            if self._verbose:
+                logger.info(f"Datos cargados: {len(self.t_real)} puntos")
+                logger.info(f"Rango temporal: [{self.t_real[0]:.3f}, {self.t_real[-1]:.3f}] s")
+                logger.info(f"Rango posición: [{self.y_real.min()*1000:.2f}, {self.y_real.max()*1000:.2f}] mm")
             
         except Exception as e:
-            print(f"⚠ Error cargando datos: {e}")
-            print("  Usando datos sintéticos...")
+            logger.warning(f"Error cargando datos: {e}")
+            logger.warning("Usando datos sintéticos...")
             self._generate_synthetic_data()
     
     def _generate_synthetic_data(self):
         """Genera datos sintéticos para pruebas."""
-        print("ℹ Usando datos sintéticos de ejemplo")
+        if self._verbose:
+            logger.info("Usando datos sintéticos de ejemplo")
         
         # Parámetros "objetivo" ocultos
         k0_true, k_true, a_true = 0.0363, 0.0035, 0.0052
@@ -131,9 +154,9 @@ class LevitadorBenchmark:
         
         sol = odeint(modelo_true, estado0, self.t_real)
         
-        # Añadir ruido realista
-        self.y_real = sol[:, 0] + np.random.normal(0, 1e-5, len(self.t_real))
-        self.i_real = sol[:, 2] + np.random.normal(0, 0.01, len(self.t_real))
+        # Añadir ruido realista (usando el generador con semilla)
+        self.y_real = sol[:, 0] + self._rng.normal(0, self._noise_level, len(self.t_real))
+        self.i_real = sol[:, 2] + self._rng.normal(0, self._noise_level * 1000, len(self.t_real))
 
     def _modelo_dinamico(self, estado, t, k0, k, a):
         """
