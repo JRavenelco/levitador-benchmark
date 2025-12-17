@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+media/
+manim_benchmark.py
+.DS_Store
