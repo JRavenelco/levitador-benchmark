@@ -53,12 +53,33 @@ class LevitadorBenchmark:
         """
         Inicializa el benchmark.
         
-        Args:
-            datos_reales_path: Ruta al archivo de datos experimentales.
-                               Si es None, usa datos sintéticos de ejemplo.
-            random_seed: Semilla para reproducibilidad. Si es None, usa estado aleatorio.
-            noise_level: Nivel de ruido para datos sintéticos (desviación estándar).
-            verbose: Si True, muestra mensajes de información.
+        Configura el problema de optimización cargando datos experimentales o 
+        generando datos sintéticos, y define el espacio de búsqueda para los 
+        parámetros de inductancia.
+
+        Parameters
+        ----------
+        datos_reales_path : str, optional
+            Ruta al archivo de datos experimentales. Si es None, se generan 
+            datos sintéticos de ejemplo (default: None).
+        random_seed : int, optional
+            Semilla para el generador de números aleatorios para garantizar 
+            reproducibilidad. Si es None, se usa un estado aleatorio 
+            (default: None).
+        noise_level : float, optional
+            Nivel de ruido (desviación estándar) para datos sintéticos 
+            (default: 1e-5).
+        verbose : bool, optional
+            Si True, muestra mensajes informativos durante la inicialización 
+            (default: True).
+
+        Notes
+        -----
+        El benchmark define automáticamente:
+        - Espacio de búsqueda (bounds) para los parámetros [k0, k, a]
+        - Datos de referencia (t_real, y_real, i_real, u_real)
+        - Constantes físicas fijas (m, g, R)
+        - Solución de referencia conocida
         """
         self._verbose = verbose
         self._noise_level = noise_level
@@ -95,7 +116,30 @@ class LevitadorBenchmark:
         self.reference_solution = [0.0363, 0.0035, 0.0052]
     
     def _load_real_data(self, path: str):
-        """Carga datos experimentales desde archivo."""
+        """
+        Carga datos experimentales desde archivo.
+        
+        Lee un archivo de datos experimentales en formato tabular y extrae las 
+        señales temporales necesarias para el benchmark: tiempo, posición, 
+        corriente y voltaje.
+
+        Parameters
+        ----------
+        path : str
+            Ruta al archivo de datos experimentales. El archivo debe contener 
+            al menos 6 columnas separadas por tabuladores o flechas: 
+            [t, yd, y, ied, ie, u].
+
+        Notes
+        -----
+        Si ocurre un error al cargar los datos, se generan automáticamente 
+        datos sintéticos como respaldo.
+        
+        El formato esperado del archivo es:
+        - Columnas: t, yd, y, ied, ie, u
+        - Separadores: tabuladores o símbolo →
+        - Sin encabezados
+        """
         import pandas as pd
         
         # Formato típico: t, yd, y, ied, ie, u (separado por tabs)
@@ -121,7 +165,29 @@ class LevitadorBenchmark:
             self._generate_synthetic_data()
     
     def _generate_synthetic_data(self):
-        """Genera datos sintéticos para pruebas."""
+        """
+        Genera datos sintéticos para pruebas.
+        
+        Crea datos sintéticos de respuesta del sistema usando parámetros 
+        conocidos (k0_true, k_true, a_true) y añade ruido gaussiano para 
+        simular mediciones reales.
+
+        Notes
+        -----
+        Los parámetros "verdaderos" ocultos usados son:
+        - k0 = 0.0363 H (inductancia base)
+        - k = 0.0035 H (coeficiente de inductancia)
+        - a = 0.0052 m (parámetro geométrico)
+        
+        El nivel de ruido se controla mediante el atributo `_noise_level` 
+        definido en la inicialización.
+        
+        Los datos generados incluyen:
+        - t_real : array de tiempos
+        - y_real : posición de la esfera (con ruido)
+        - i_real : corriente del electroimán (con ruido)
+        - u_real : voltaje de entrada (escalón de 12V)
+        """
         if self._verbose:
             logger.info("Usando datos sintéticos de ejemplo")
         
@@ -162,13 +228,42 @@ class LevitadorBenchmark:
         """
         Modelo dinámico del levitador (Ecuaciones de Euler-Lagrange).
         
-        Args:
-            estado: [y, v, i] - posición, velocidad, corriente
-            t: tiempo actual
-            k0, k, a: parámetros de inductancia a evaluar
+        Implementa las ecuaciones diferenciales que gobiernan la dinámica del 
+        sistema de levitación magnética, incluyendo la ecuación mecánica 
+        (Newton) y la ecuación eléctrica (Kirchhoff).
+
+        Parameters
+        ----------
+        estado : array_like
+            Vector de estado [y, v, i] donde:
+            - y : posición de la esfera [m]
+            - v : velocidad de la esfera [m/s]
+            - i : corriente en la bobina [A]
+        t : float
+            Tiempo actual [s]
+        k0 : float
+            Inductancia base [H]
+        k : float
+            Coeficiente de inductancia [H]
+        a : float
+            Parámetro geométrico [m]
+
+        Returns
+        -------
+        list of float
+            Vector de derivadas [dy/dt, dv/dt, di/dt] donde:
+            - dy/dt : velocidad [m/s]
+            - dv/dt : aceleración [m/s²]
+            - di/dt : derivada de la corriente [A/s]
+
+        Notes
+        -----
+        El modelo usa la función de inductancia no lineal:
+        L(y) = k0 + k / (1 + y/a)
         
-        Returns:
-            [dy/dt, dv/dt, di/dt]
+        Las ecuaciones son:
+        - Mecánica: m*dv/dt = 0.5*dL/dy*i² + m*g
+        - Eléctrica: L(y)*di/dt + dL/dy*v*i + R*i = u(t)
         """
         y, v, i = estado
         
@@ -205,22 +300,41 @@ class LevitadorBenchmark:
 
     def fitness_function(self, individuo: List[float]) -> float:
         """
-        FUNCIÓN OBJETIVO PARA ALGORITMOS BIO-INSPIRADOS.
+        Función objetivo para algoritmos bio-inspirados.
         
-        Esta es la función que los algoritmos genéticos, PSO, DE, etc.
-        deben minimizar.
-        
-        Args:
-            individuo: Vector [k0, k, a] con los parámetros a evaluar
-        
-        Returns:
-            Error (MSE) entre simulación y datos reales.
-            Valores más bajos = mejor ajuste.
-            Retorna 1e9 si hay error o violación de restricciones.
-        
-        Ejemplo:
-            >>> error = problema.fitness_function([0.036, 0.0035, 0.005])
-            >>> print(f"MSE: {error:.6e}")
+        Esta es la función que los algoritmos genéticos, PSO, DE, etc. deben 
+        minimizar. Calcula el Error Cuadrático Medio (MSE) entre la trayectoria 
+        simulada y los datos experimentales reales.
+
+        Parameters
+        ----------
+        individuo : list of float
+            Vector [k0, k, a] con los parámetros de inductancia a evaluar:
+            - k0 : inductancia base [H]
+            - k : coeficiente de inductancia [H]
+            - a : parámetro geométrico [m]
+
+        Returns
+        -------
+        float
+            Error cuadrático medio (MSE) entre simulación y datos reales. 
+            Valores más bajos indican mejor ajuste. Retorna 1e9 si hay error 
+            numérico o violación de restricciones.
+
+        Notes
+        -----
+        La función penaliza automáticamente:
+        - Valores negativos o cero en cualquier parámetro
+        - Parámetros fuera de los límites definidos en `self.bounds`
+        - Errores numéricos (NaN, Inf) durante la simulación
+        - Fallas en el integrador ODE
+
+        Examples
+        --------
+        >>> problema = LevitadorBenchmark()
+        >>> error = problema.fitness_function([0.036, 0.0035, 0.005])
+        >>> print(f"MSE: {error:.6e}")
+        MSE: 1.234567e-06
         """
         k0, k, a = individuo
         
@@ -265,11 +379,30 @@ class LevitadorBenchmark:
         """
         Evalúa una población completa (útil para algoritmos paralelos).
         
-        Args:
-            population: Matriz (n_individuos, 3) con parámetros
-        
-        Returns:
-            Vector de fitness para cada individuo
+        Evalúa múltiples soluciones candidatas en un solo llamado, útil para 
+        algoritmos de optimización basados en población como algoritmos 
+        genéticos, PSO, o evolución diferencial.
+
+        Parameters
+        ----------
+        population : np.ndarray
+            Matriz de dimensiones (n_individuos, 3) donde cada fila contiene 
+            los parámetros [k0, k, a] de un individuo.
+
+        Returns
+        -------
+        np.ndarray
+            Vector de dimensión (n_individuos,) con el valor de fitness (MSE) 
+            para cada individuo. Valores más bajos indican mejor ajuste.
+
+        Examples
+        --------
+        >>> problema = LevitadorBenchmark()
+        >>> poblacion = np.array([[0.036, 0.0035, 0.005],
+        ...                        [0.040, 0.0030, 0.004]])
+        >>> fitness = problema.evaluate_batch(poblacion)
+        >>> print(fitness)
+        [1.23e-06 5.67e-05]
         """
         return np.array([self.fitness_function(ind) for ind in population])
 
@@ -277,8 +410,22 @@ class LevitadorBenchmark:
         """
         Retorna límites en formato array (útil para scipy.optimize).
         
-        Returns:
-            (lower_bounds, upper_bounds)
+        Convierte los límites del espacio de búsqueda al formato requerido por 
+        optimizadores como scipy.optimize.differential_evolution.
+
+        Returns
+        -------
+        lower_bounds : np.ndarray
+            Array de dimensión (3,) con los límites inferiores [k0_min, k_min, a_min].
+        upper_bounds : np.ndarray
+            Array de dimensión (3,) con los límites superiores [k0_max, k_max, a_max].
+
+        Examples
+        --------
+        >>> problema = LevitadorBenchmark()
+        >>> lb, ub = problema.get_bounds_array()
+        >>> print(f"k0: [{lb[0]}, {ub[0]}]")
+        k0: [0.0001, 0.1]
         """
         bounds_arr = np.array(self.bounds)
         return bounds_arr[:, 0], bounds_arr[:, 1]
@@ -287,9 +434,31 @@ class LevitadorBenchmark:
         """
         Visualiza la solución comparando simulación vs datos reales.
         
-        Args:
-            individuo: [k0, k, a] solución a visualizar
-            save_path: Ruta para guardar la figura (opcional)
+        Genera una gráfica que compara la trayectoria simulada usando los 
+        parámetros propuestos contra los datos experimentales reales.
+
+        Parameters
+        ----------
+        individuo : list of float
+            Vector [k0, k, a] con los parámetros de inductancia a visualizar.
+        save_path : str, optional
+            Ruta donde guardar la figura. Si es None, solo se muestra sin 
+            guardar (default: None).
+
+        Notes
+        -----
+        La gráfica incluye:
+        - Datos reales (línea azul continua)
+        - Simulación con parámetros propuestos (línea roja discontinua)
+        - Error MSE en el título
+        - Valores de los parámetros en el título
+
+        Examples
+        --------
+        >>> problema = LevitadorBenchmark()
+        >>> solucion = [0.0363, 0.0035, 0.0052]
+        >>> problema.visualize_solution(solucion, save_path="resultado.png")
+        ✓ Figura guardada en: resultado.png
         """
         import matplotlib.pyplot as plt
         
@@ -327,6 +496,15 @@ class LevitadorBenchmark:
         plt.show()
 
     def __repr__(self):
+        """
+        Representación en cadena del objeto LevitadorBenchmark.
+
+        Returns
+        -------
+        str
+            Cadena descriptiva con la dimensión del problema, número de 
+            muestras y límites del espacio de búsqueda.
+        """
         return (f"LevitadorBenchmark(dim={self.dim}, "
                 f"n_samples={len(self.t_real)}, "
                 f"bounds={self.bounds})")
@@ -340,17 +518,60 @@ def create_benchmark(data_path: str = None) -> LevitadorBenchmark:
     """
     Función de fábrica para crear el benchmark.
     
-    Args:
-        data_path: Ruta a datos experimentales (opcional)
-    
-    Returns:
-        Instancia de LevitadorBenchmark lista para usar
+    Crea y retorna una instancia configurada de LevitadorBenchmark lista para 
+    ser usada en algoritmos de optimización.
+
+    Parameters
+    ----------
+    data_path : str, optional
+        Ruta al archivo de datos experimentales. Si es None, se usan datos 
+        sintéticos (default: None).
+
+    Returns
+    -------
+    LevitadorBenchmark
+        Instancia del benchmark lista para evaluar soluciones.
+
+    Examples
+    --------
+    >>> # Con datos sintéticos
+    >>> problema = create_benchmark()
+    >>> 
+    >>> # Con datos experimentales
+    >>> problema = create_benchmark("data/datos_levitador.txt")
     """
     return LevitadorBenchmark(data_path)
 
 
 def run_quick_test():
-    """Ejecuta una prueba rápida del benchmark."""
+    """
+    Ejecuta una prueba rápida del benchmark.
+    
+    Función de demostración que crea una instancia del benchmark con datos 
+    sintéticos, muestra información del problema y evalúa tanto la solución 
+    de referencia como una solución aleatoria.
+
+    Notes
+    -----
+    Esta función es útil para:
+    - Verificar que el benchmark funciona correctamente
+    - Entender la estructura del problema
+    - Ver ejemplos de evaluación de soluciones
+    
+    La función imprime:
+    - Información del problema (dimensión, límites)
+    - Solución de referencia y su error MSE
+    - Solución aleatoria y su error MSE
+
+    Examples
+    --------
+    >>> run_quick_test()
+    ============================================================
+    LEVITADOR MAGNÉTICO - TEST RÁPIDO
+    ============================================================
+    ...
+    ✓ Test completado
+    """
     print("=" * 60)
     print("LEVITADOR MAGNÉTICO - TEST RÁPIDO")
     print("=" * 60)
