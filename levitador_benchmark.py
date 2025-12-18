@@ -94,7 +94,7 @@ class LevitadorBenchmark:
         # Valores de referencia (si se conocen)
         self.reference_solution = [0.0363, 0.0035, 0.0052]
     
-    def _load_real_data(self, path: str):
+    def _load_real_data(self, path: str) -> None:
         """Carga datos experimentales desde archivo."""
         import pandas as pd
         
@@ -120,7 +120,7 @@ class LevitadorBenchmark:
             logger.warning("Usando datos sintéticos...")
             self._generate_synthetic_data()
     
-    def _generate_synthetic_data(self):
+    def _generate_synthetic_data(self) -> None:
         """Genera datos sintéticos para pruebas."""
         if self._verbose:
             logger.info("Usando datos sintéticos de ejemplo")
@@ -137,7 +137,7 @@ class LevitadorBenchmark:
         # Simular respuesta "verdadera"
         estado0 = [0.015, 0.0, 0.0]  # y0=15mm, v0=0, i0=0
         
-        def modelo_true(estado, t):
+        def modelo_true(estado: List[float], t: float) -> List[float]:
             y, v, i = estado
             u = 12.0
             denom = 1 + (y / a_true)
@@ -158,7 +158,7 @@ class LevitadorBenchmark:
         self.y_real = sol[:, 0] + self._rng.normal(0, self._noise_level, len(self.t_real))
         self.i_real = sol[:, 2] + self._rng.normal(0, self._noise_level * 1000, len(self.t_real))
 
-    def _modelo_dinamico(self, estado, t, k0, k, a):
+    def _modelo_dinamico(self, estado: List[float], t: float, k0: float, k: float, a: float) -> List[float]:
         """
         Modelo dinámico del levitador (Ecuaciones de Euler-Lagrange).
         
@@ -283,7 +283,7 @@ class LevitadorBenchmark:
         bounds_arr = np.array(self.bounds)
         return bounds_arr[:, 0], bounds_arr[:, 1]
 
-    def visualize_solution(self, individuo: List[float], save_path: str = None):
+    def visualize_solution(self, individuo: List[float], save_path: Optional[str] = None) -> None:
         """
         Visualiza la solución comparando simulación vs datos reales.
         
@@ -326,7 +326,7 @@ class LevitadorBenchmark:
         
         plt.show()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (f"LevitadorBenchmark(dim={self.dim}, "
                 f"n_samples={len(self.t_real)}, "
                 f"bounds={self.bounds})")
@@ -336,7 +336,7 @@ class LevitadorBenchmark:
 # FUNCIONES DE CONVENIENCIA
 # =============================================================================
 
-def create_benchmark(data_path: str = None) -> LevitadorBenchmark:
+def create_benchmark(data_path: Optional[str] = None) -> LevitadorBenchmark:
     """
     Función de fábrica para crear el benchmark.
     
@@ -349,7 +349,7 @@ def create_benchmark(data_path: str = None) -> LevitadorBenchmark:
     return LevitadorBenchmark(data_path)
 
 
-def run_quick_test():
+def run_quick_test() -> None:
     """Ejecuta una prueba rápida del benchmark."""
     print("=" * 60)
     print("LEVITADOR MAGNÉTICO - TEST RÁPIDO")
