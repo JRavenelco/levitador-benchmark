@@ -60,6 +60,24 @@ class BaseOptimizer(ABC):
         self.evaluations += 1
         return self.problema.fitness_function(solution)
     
+    def _evaluate_batch(self, population: np.ndarray, use_parallel: bool = False) -> np.ndarray:
+        """
+        Evalúa una población completa usando evaluación en lote optimizada.
+        
+        Args:
+            population: Matriz (n_individuos, dim) con las soluciones
+            use_parallel: Si True, usa procesamiento paralelo
+        
+        Returns:
+            Array con los valores de fitness para cada individuo
+        """
+        self.evaluations += len(population)
+        
+        if use_parallel:
+            return self.problema.evaluate_batch(population, n_jobs=-1)
+        else:
+            return self.problema.evaluate_batch_vectorized(population)
+    
     @abstractmethod
     def optimize(self) -> Tuple[np.ndarray, float]:
         """
@@ -132,7 +150,8 @@ class DifferentialEvolution(BaseOptimizer):
     def optimize(self) -> Tuple[np.ndarray, float]:
         # Inicializar población
         population = self._rng.uniform(self.lb, self.ub, (self.pop_size, self.dim))
-        fitness = np.array([self._evaluate(ind) for ind in population])
+        # Usar evaluación en lote para la población inicial
+        fitness = self._evaluate_batch(population)
         
         best_idx = np.argmin(fitness)
         best_solution = population[best_idx].copy()
@@ -203,8 +222,8 @@ class GeneticAlgorithm(BaseOptimizer):
         best_error = float('inf')
         
         for gen in range(self.generations):
-            # Evaluar fitness
-            fitness = np.array([self._evaluate(ind) for ind in population])
+            # Evaluar fitness usando evaluación en lote
+            fitness = self._evaluate_batch(population)
             
             # Actualizar mejor
             best_idx = np.argmin(fitness)
