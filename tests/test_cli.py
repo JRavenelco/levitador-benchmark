@@ -1,6 +1,6 @@
 """
 Tests for the benchmark CLI.
-Ejecutar con: pytest tests/test_cli.py -v
+Run with: pytest tests/test_cli.py -v
 """
 
 import pytest

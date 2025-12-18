@@ -22,6 +22,7 @@ import numpy as np
 from levitador_benchmark import LevitadorBenchmark
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional
+from math import gamma
 
 # =============================================================================
 # CLASE BASE PARA ALGORITMOS
@@ -629,7 +630,6 @@ class ShrimpOptimizer(BaseOptimizer):
     
     def _levy_flight(self, beta=1.5):
         """Genera un paso de Lévy flight."""
-        from math import gamma
         sigma = (gamma(1 + beta) * np.sin(np.pi * beta / 2) /
                  (gamma((1 + beta) / 2) * beta * 2**((beta - 1) / 2)))**(1 / beta)
         u = self._rng.normal(0, sigma, self.dim)

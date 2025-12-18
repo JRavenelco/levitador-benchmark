@@ -403,15 +403,9 @@ Más información: https://github.com/JRavenelco/levitador-benchmark
         help='Generar visualización de la solución'
     )
     parser_run.add_argument(
-        '--verbose',
-        action='store_true',
-        default=True,
-        help='Mostrar información detallada (default: True)'
-    )
-    parser_run.add_argument(
         '--quiet', '-q',
         action='store_true',
-        help='Modo silencioso (deshabilita verbose)'
+        help='Modo silencioso (deshabilita mensajes detallados)'
     )
     
     # Añadir parámetros específicos de cada algoritmo
@@ -427,9 +421,11 @@ Más información: https://github.com/JRavenelco/levitador-benchmark
     # Parsear argumentos
     args = parser.parse_args()
     
-    # Ajustar verbose si se usa --quiet
-    if hasattr(args, 'quiet') and args.quiet:
-        args.verbose = False
+    # Configurar verbose basado en --quiet
+    if hasattr(args, 'quiet'):
+        args.verbose = not args.quiet
+    else:
+        args.verbose = True
     
     # Ejecutar comando
     if args.command in ['list-algorithms', 'list', 'ls']:
