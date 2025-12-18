@@ -3,3 +3,6 @@ __pycache__/
 media/
 manim_benchmark.py
 .DS_Store
+pso_result.png
+ga_result.png
+de_result.png
