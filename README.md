@@ -415,14 +415,11 @@ Los parámetros $[k_0, k, a]$ identificados por metaheurísticos pueden usarse p
 
 ---
 
-## 🎬 Videos Explicativos
+## 🎬 Video: Observador KAN-PINN
 
-| Video | Descripción | Enlace |
-|-------|-------------|--------|
-| 01 | Problema físico del levitador | [videos/01_problema_fisico.mp4](videos/) |
-| 02 | Función de fitness y MSE | [videos/02_funcion_fitness.mp4](videos/) |
-| 03 | Cómo usar metaheurísticos | [videos/03_como_optimizar.mp4](videos/) |
-| 04 | Observador KAN-PINN | [videos/04_kan_pinn.mp4](videos/) |
+![KAN-PINN Explicación](videos/kan_pinn_explicacion.gif)
+
+*Animación generada con Manim - Arquitectura y entrenamiento del observador KAN-PINN*
 
 ---
 
