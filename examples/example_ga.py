@@ -84,11 +84,7 @@ class GeneticAlgorithm:
         self.dim = len(self.lb)
         
         # Random number generator
-        if random_seed is not None:
-            np.random.seed(random_seed)
-            self._rng = np.random.default_rng(random_seed)
-        else:
-            self._rng = np.random.default_rng()
+        self._rng = np.random.default_rng(random_seed)
         
         # Tracking
         self.evaluations = 0
@@ -144,9 +140,9 @@ class GeneticAlgorithm:
             # === CROSSOVER ===
             # Create offspring through BLX-alpha crossover
             offspring = []
-            for i in range(0, self.pop_size, 2):
+            for i in range(0, self.pop_size - 1, 2):
                 parent1 = parents[i]
-                parent2 = parents[min(i + 1, self.pop_size - 1)]
+                parent2 = parents[i + 1]
                 
                 if self._rng.random() < self.crossover_prob:
                     child1, child2 = self._blx_alpha_crossover(parent1, parent2)
@@ -155,7 +151,9 @@ class GeneticAlgorithm:
                 
                 offspring.extend([child1, child2])
             
-            offspring = offspring[:self.pop_size]  # Ensure correct size
+            # Handle odd population size by cloning last parent
+            if len(offspring) < self.pop_size:
+                offspring.append(parents[-1].copy())
             
             # === MUTATION ===
             # Apply Gaussian mutation

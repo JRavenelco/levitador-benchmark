@@ -70,7 +70,6 @@ class DifferentialEvolution:
             verbose: Print progress information
         """
         self.problema = problema
-        self.pop_size = pop_size
         self.max_iter = max_iter
         self.F = F    # Mutation/scaling factor
         self.CR = CR  # Crossover rate
@@ -82,12 +81,13 @@ class DifferentialEvolution:
         self.ub = bounds[:, 1]
         self.dim = len(self.lb)
         
+        # Validate population size (must be at least 4 for DE/rand/1/bin)
+        if pop_size < 4:
+            raise ValueError("Population size must be at least 4 for DE/rand/1/bin strategy")
+        self.pop_size = pop_size
+        
         # Random number generator
-        if random_seed is not None:
-            np.random.seed(random_seed)
-            self._rng = np.random.default_rng(random_seed)
-        else:
-            self._rng = np.random.default_rng()
+        self._rng = np.random.default_rng(random_seed)
         
         # Tracking
         self.evaluations = 0

@@ -78,11 +78,7 @@ class ParticleSwarmOptimizer:
         self.dim = len(self.lb)
         
         # Random number generator
-        if random_seed is not None:
-            np.random.seed(random_seed)
-            self._rng = np.random.default_rng(random_seed)
-        else:
-            self._rng = np.random.default_rng()
+        self._rng = np.random.default_rng(random_seed)
         
         # Tracking
         self.evaluations = 0
