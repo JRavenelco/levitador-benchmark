@@ -341,12 +341,12 @@ class TestVerboseMode:
         """Verifica que verbose=False reduce la salida."""
         # Simplemente verificar que se puede crear con verbose=False
         benchmark = LevitadorBenchmark(random_seed=42, verbose=False)
-        assert benchmark._verbose == False
+        assert benchmark._verbose is False
     
     def test_verbose_true_enables_output(self):
         """Verifica que verbose=True habilita salida."""
         benchmark = LevitadorBenchmark(random_seed=42, verbose=True)
-        assert benchmark._verbose == True
+        assert benchmark._verbose is True
 
 
 class TestDataGeneration:
@@ -493,7 +493,7 @@ class TestInitializationVariants:
     def test_initialization_verbose_false_by_default(self):
         """Verifica que verbose=False es el valor por defecto."""
         benchmark = LevitadorBenchmark(random_seed=42, verbose=False)
-        assert benchmark._verbose == False
+        assert benchmark._verbose is False
 
 
 class TestBoundsMethods:
