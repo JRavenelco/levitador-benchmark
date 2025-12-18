@@ -77,7 +77,41 @@ pip install numpy scipy pandas matplotlib
 
 ## 💻 Uso
 
-### Ejemplo Básico
+### 🖥️ Interfaz de Línea de Comandos (CLI)
+
+El benchmark incluye una interfaz CLI completa para ejecutar optimizaciones desde la terminal:
+
+```bash
+# Listar algoritmos disponibles
+python benchmark_cli.py list-algorithms
+
+# Ejecutar test rápido
+python benchmark_cli.py test
+
+# Ejecutar Evolución Diferencial
+python benchmark_cli.py run --algorithm DE --pop-size 30 --max-iter 100
+
+# Ejecutar Algoritmo Genético y guardar resultados
+python benchmark_cli.py run --algorithm GA --generations 50 --output results.json
+
+# Ejecutar con datos reales y visualización
+python benchmark_cli.py run --algorithm GWO --data data/datos_levitador.txt --visualize
+
+# Ejecutar con semilla para reproducibilidad
+python benchmark_cli.py run --algorithm ABC --seed 42 --output results.json
+```
+
+**Algoritmos disponibles:** Random Search, DE (Differential Evolution), GA (Genetic Algorithm), GWO (Grey Wolf Optimizer), ABC (Artificial Bee Colony), HBA (Honey Badger Algorithm), Shrimp, Tianji
+
+Ver ayuda completa:
+```bash
+python benchmark_cli.py --help
+python benchmark_cli.py run --help
+```
+
+### 📚 Uso desde Python
+
+#### Ejemplo Básico
 
 ```python
 from levitador_benchmark import LevitadorBenchmark
@@ -92,13 +126,13 @@ error = problema.fitness_function(solucion)
 print(f"Error MSE: {error:.6e}")
 ```
 
-### Con Datos Experimentales Reales
+#### Con Datos Experimentales Reales
 
 ```python
 problema = LevitadorBenchmark("data/datos_levitador.txt")
 ```
 
-### Control de Reproducibilidad
+#### Control de Reproducibilidad
 
 ```python
 # Usar semilla para resultados reproducibles
