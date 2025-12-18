@@ -16,6 +16,10 @@ from scipy.integrate import odeint
 from pathlib import Path
 from typing import Tuple, List, Optional
 import logging
+from multiprocessing import Pool, cpu_count
+
+# Constantes
+PENALTY_VALUE = 1e9  # Valor de penalización para soluciones inválidas
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -216,7 +220,7 @@ class LevitadorBenchmark:
         Returns:
             Error (MSE) entre simulación y datos reales.
             Valores más bajos = mejor ajuste.
-            Retorna 1e9 si hay error o violación de restricciones.
+            Retorna PENALTY_VALUE si hay error o violación de restricciones.
         
         Ejemplo:
             >>> error = problema.fitness_function([0.036, 0.0035, 0.005])
@@ -226,12 +230,12 @@ class LevitadorBenchmark:
         
         # Validar restricciones físicas (valores positivos)
         if any(x <= 0 for x in individuo):
-            return 1e9  # Penalización: individuo inválido
+            return PENALTY_VALUE  # Penalización: individuo inválido
         
         # Verificar que está dentro de los límites
         for val, (lb, ub) in zip(individuo, self.bounds):
             if val < lb or val > ub:
-                return 1e9  # Fuera de límites
+                return PENALTY_VALUE  # Fuera de límites
 
         # Condición inicial (tomada de los datos reales)
         y0 = self.y_real[0] if len(self.y_real) > 0 else 0.01
@@ -254,24 +258,151 @@ class LevitadorBenchmark:
             
             # Si la simulación explota (NaNs o infinitos), penalizar
             if np.isnan(error) or np.isinf(error):
-                return 1e9
+                return PENALTY_VALUE
             
             return float(error)
             
         except Exception:
-            return 1e9  # Si falla el integrador, penalizar
+            return PENALTY_VALUE  # Si falla el integrador, penalizar
 
-    def evaluate_batch(self, population: np.ndarray) -> np.ndarray:
+    def evaluate_batch(self, population: np.ndarray, n_jobs: int = 1) -> np.ndarray:
         """
-        Evalúa una población completa (útil para algoritmos paralelos).
+        Evalúa una población completa de forma optimizada.
+        
+        Esta función está optimizada para evaluación en lote, con soporte
+        para procesamiento paralelo cuando n_jobs > 1.
         
         Args:
-            population: Matriz (n_individuos, 3) con parámetros
+            population: Matriz (n_individuos, 3) con parámetros [k0, k, a]
+            n_jobs: Número de trabajos paralelos. 
+                   - Si n_jobs=1: evaluación secuencial (por defecto)
+                   - Si n_jobs=-1: usa todos los CPUs disponibles
+                   - Si n_jobs>1: usa ese número de CPUs
         
         Returns:
             Vector de fitness para cada individuo
+        
+        Examples:
+            >>> # Evaluación secuencial
+            >>> population = np.array([[0.036, 0.0035, 0.005], [0.04, 0.004, 0.006]])
+            >>> fitness = benchmark.evaluate_batch(population)
+            >>> 
+            >>> # Evaluación paralela con todos los CPUs
+            >>> fitness = benchmark.evaluate_batch(population, n_jobs=-1)
         """
-        return np.array([self.fitness_function(ind) for ind in population])
+        # Asegurar que population es un array de numpy 2D
+        population = np.atleast_2d(population)
+        n_individuals = population.shape[0]
+        
+        # Pre-asignar el array de resultados
+        fitness_values = np.zeros(n_individuals, dtype=np.float64)
+        
+        if n_jobs == 1:
+            # Evaluación secuencial optimizada
+            for i in range(n_individuals):
+                fitness_values[i] = self._evaluate_single(population[i])
+        else:
+            # Evaluación paralela
+            # Determinar número de workers
+            if n_jobs == -1:
+                n_workers = cpu_count()
+            else:
+                n_workers = min(n_jobs, cpu_count())
+            
+            # Usar multiprocessing para evaluación paralela
+            with Pool(processes=n_workers) as pool:
+                fitness_values = np.array(pool.map(self._evaluate_single, population))
+        
+        return fitness_values
+    
+    def _evaluate_single(self, individuo: np.ndarray) -> float:
+        """
+        Evalúa un solo individuo. Método auxiliar para evaluate_batch.
+        
+        Args:
+            individuo: Array [k0, k, a]
+        
+        Returns:
+            Valor de fitness
+        """
+        # Conversión a lista para compatibilidad con fitness_function
+        return self.fitness_function(individuo.tolist())
+    
+    def evaluate_batch_vectorized(self, population: np.ndarray) -> np.ndarray:
+        """
+        Evaluación vectorizada optimizada para grandes poblaciones.
+        
+        Esta versión usa validación vectorizada y pre-asignación de memoria
+        para mejorar el rendimiento con poblaciones grandes.
+        
+        Args:
+            population: Matriz (n_individuos, 3) con parámetros [k0, k, a]
+        
+        Returns:
+            Vector de fitness para cada individuo
+        
+        Note:
+            Esta función es más eficiente que evaluate_batch(n_jobs=1) para
+            poblaciones grandes debido a la validación vectorizada de restricciones.
+        """
+        population = np.atleast_2d(population)
+        n_individuals = population.shape[0]
+        
+        # Pre-asignar array de resultados con valor de penalización
+        fitness_values = np.full(n_individuals, PENALTY_VALUE, dtype=np.float64)
+        
+        # Validación vectorizada de restricciones
+        # Valores positivos
+        positive_mask = np.all(population > 0, axis=1)
+        
+        # Dentro de límites
+        bounds_array = np.array(self.bounds)
+        lower_bounds = bounds_array[:, 0]
+        upper_bounds = bounds_array[:, 1]
+        
+        in_bounds_mask = np.all(
+            (population >= lower_bounds) & (population <= upper_bounds),
+            axis=1
+        )
+        
+        # Máscara de individuos válidos
+        valid_mask = positive_mask & in_bounds_mask
+        
+        # Solo evaluar individuos válidos
+        valid_indices = np.where(valid_mask)[0]
+        
+        # Cachear datos comunes para todas las evaluaciones
+        y0 = self.y_real[0] if len(self.y_real) > 0 else 0.01
+        estado_inicial = [y0, 0.0, 0.0]
+        
+        # Evaluar cada individuo válido
+        for idx in valid_indices:
+            k0, k, a = population[idx]
+            
+            try:
+                # Simular dinámica
+                solucion = odeint(
+                    self._modelo_dinamico,
+                    estado_inicial,
+                    self.t_real,
+                    args=(k0, k, a),
+                    full_output=False
+                )
+                
+                y_sim = solucion[:, 0]
+                
+                # Calcular MSE
+                error = np.mean((self.y_real - y_sim)**2)
+                
+                # Validar resultado
+                if not (np.isnan(error) or np.isinf(error)):
+                    fitness_values[idx] = float(error)
+                    
+            except Exception:
+                # Mantener penalización (PENALTY_VALUE) si falla
+                pass
+        
+        return fitness_values
 
     def get_bounds_array(self) -> Tuple[np.ndarray, np.ndarray]:
         """
