@@ -716,9 +716,18 @@ class MultiObjectiveBenchmark(LevitadorBenchmark):
         return [mse, robustness]
     
     def _evaluate_robustness(self, individuo):
-        """Evalúa la robustez de la solución ante perturbaciones."""
-        # Placeholder - implementar lógica específica
-        pass
+        """
+        Evalúa la robustez de la solución ante perturbaciones.
+        
+        Returns:
+            float: Métrica de robustez (placeholder)
+        """
+        # Ejemplo: evaluar con ruido en los parámetros
+        perturbations = []
+        for _ in range(5):
+            perturbed = individuo + np.random.normal(0, 0.01, len(individuo))
+            perturbations.append(super().fitness_function(perturbed))
+        return np.std(perturbations)  # Variabilidad como medida de robustez
 ```
 
 ### Alternativas Consideradas
