@@ -16,6 +16,10 @@ from scipy.integrate import odeint
 from pathlib import Path
 from typing import Tuple, List, Optional
 import logging
+from multiprocessing import Pool, cpu_count
+
+# Constantes
+PENALTY_VALUE = 1e9  # Valor de penalización para soluciones inválidas
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -216,7 +220,7 @@ class LevitadorBenchmark:
         Returns:
             Error (MSE) entre simulación y datos reales.
             Valores más bajos = mejor ajuste.
-            Retorna 1e9 si hay error o violación de restricciones.
+            Retorna PENALTY_VALUE si hay error o violación de restricciones.
         
         Ejemplo:
             >>> error = problema.fitness_function([0.036, 0.0035, 0.005])
@@ -226,12 +230,12 @@ class LevitadorBenchmark:
         
         # Validar restricciones físicas (valores positivos)
         if any(x <= 0 for x in individuo):
-            return 1e9  # Penalización: individuo inválido
+            return PENALTY_VALUE  # Penalización: individuo inválido
         
         # Verificar que está dentro de los límites
         for val, (lb, ub) in zip(individuo, self.bounds):
             if val < lb or val > ub:
-                return 1e9  # Fuera de límites
+                return PENALTY_VALUE  # Fuera de límites
 
         # Condición inicial (tomada de los datos reales)
         y0 = self.y_real[0] if len(self.y_real) > 0 else 0.01
@@ -254,12 +258,12 @@ class LevitadorBenchmark:
             
             # Si la simulación explota (NaNs o infinitos), penalizar
             if np.isnan(error) or np.isinf(error):
-                return 1e9
+                return PENALTY_VALUE
             
             return float(error)
             
         except Exception:
-            return 1e9  # Si falla el integrador, penalizar
+            return PENALTY_VALUE  # Si falla el integrador, penalizar
 
     def evaluate_batch(self, population: np.ndarray, n_jobs: int = 1) -> np.ndarray:
         """
@@ -299,8 +303,6 @@ class LevitadorBenchmark:
                 fitness_values[i] = self._evaluate_single(population[i])
         else:
             # Evaluación paralela
-            from multiprocessing import Pool, cpu_count
-            
             # Determinar número de workers
             if n_jobs == -1:
                 n_workers = cpu_count()
@@ -324,7 +326,7 @@ class LevitadorBenchmark:
             Valor de fitness
         """
         # Conversión a lista para compatibilidad con fitness_function
-        return self.fitness_function(individuo.tolist() if hasattr(individuo, 'tolist') else list(individuo))
+        return self.fitness_function(individuo.tolist())
     
     def evaluate_batch_vectorized(self, population: np.ndarray) -> np.ndarray:
         """
@@ -346,8 +348,8 @@ class LevitadorBenchmark:
         population = np.atleast_2d(population)
         n_individuals = population.shape[0]
         
-        # Pre-asignar array de resultados
-        fitness_values = np.full(n_individuals, 1e9, dtype=np.float64)
+        # Pre-asignar array de resultados con valor de penalización
+        fitness_values = np.full(n_individuals, PENALTY_VALUE, dtype=np.float64)
         
         # Validación vectorizada de restricciones
         # Valores positivos
@@ -397,7 +399,7 @@ class LevitadorBenchmark:
                     fitness_values[idx] = float(error)
                     
             except Exception:
-                # Mantener penalización (1e9) si falla
+                # Mantener penalización (PENALTY_VALUE) si falla
                 pass
         
         return fitness_values

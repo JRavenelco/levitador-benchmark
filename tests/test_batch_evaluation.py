@@ -9,7 +9,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from levitador_benchmark import LevitadorBenchmark
+from levitador_benchmark import LevitadorBenchmark, PENALTY_VALUE
 
 
 class TestBatchEvaluation:
@@ -72,9 +72,9 @@ class TestBatchEvaluation:
         
         results = benchmark.evaluate_batch(population)
         
-        assert results[0] < 1e9  # El válido debe tener error razonable
-        assert results[1] == 1e9  # Penalización para negativo
-        assert results[2] == 1e9  # Penalización para fuera de límites
+        assert results[0] < PENALTY_VALUE  # El válido debe tener error razonable
+        assert results[1] == PENALTY_VALUE  # Penalización para negativo
+        assert results[2] == PENALTY_VALUE  # Penalización para fuera de límites
     
     def test_evaluate_batch_vectorized_single_individual(self, benchmark):
         """Verifica que evaluate_batch_vectorized funciona con un solo individuo."""
@@ -84,7 +84,7 @@ class TestBatchEvaluation:
         assert isinstance(result, np.ndarray)
         assert len(result) == 1
         assert not np.isnan(result[0])
-        assert result[0] < 1e9  # No debe estar penalizado
+        assert result[0] < PENALTY_VALUE  # No debe estar penalizado
     
     def test_evaluate_batch_vectorized_multiple_individuals(self, benchmark):
         """Verifica que evaluate_batch_vectorized funciona con múltiples individuos."""
@@ -98,7 +98,7 @@ class TestBatchEvaluation:
         
         assert isinstance(results, np.ndarray)
         assert len(results) == 3
-        assert all(r < 1e9 for r in results)  # Todos deben ser válidos
+        assert all(r < PENALTY_VALUE for r in results)  # Todos deben ser válidos
     
     def test_evaluate_batch_vectorized_consistency(self, benchmark):
         """Verifica que evaluate_batch_vectorized da los mismos resultados que evaluate_batch."""
@@ -126,10 +126,10 @@ class TestBatchEvaluation:
         
         results = benchmark.evaluate_batch_vectorized(population)
         
-        assert results[0] < 1e9  # válido
-        assert results[1] == 1e9  # inválido
-        assert results[2] == 1e9  # inválido
-        assert results[3] < 1e9  # válido
+        assert results[0] < PENALTY_VALUE  # válido
+        assert results[1] == PENALTY_VALUE  # inválido
+        assert results[2] == PENALTY_VALUE  # inválido
+        assert results[3] < PENALTY_VALUE  # válido
     
     def test_evaluate_batch_with_large_population(self, benchmark):
         """Verifica que evaluate_batch funciona con poblaciones grandes."""
