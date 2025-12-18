@@ -3,7 +3,7 @@ Integration tests for fitness function MSE validation.
 These tests verify that the fitness function returns valid MSE (Mean Squared Error) values
 under various conditions and scenarios.
 
-Ejecutar con: pytest tests/test_integration_mse.py -v
+Run with: pytest tests/test_integration_mse.py -v
 """
 
 import pytest
@@ -167,7 +167,10 @@ class TestFitnessFunctionMSEValidation:
         
         # Values will be different due to different synthetic data, but should be in similar range
         # (both should be reasonably small or reasonably large, not vastly different)
-        assert abs(np.log10(mse1 + 1e-10) - np.log10(mse2 + 1e-10)) < 5, \
+        # Threshold of 5 allows for MSE values to differ by up to 5 orders of magnitude,
+        # which is reasonable given different random seeds but ensures both are valid computations
+        LOG_MAGNITUDE_THRESHOLD = 5
+        assert abs(np.log10(mse1 + 1e-10) - np.log10(mse2 + 1e-10)) < LOG_MAGNITUDE_THRESHOLD, \
             "MSE values with different seeds should be in similar order of magnitude"
 
 
