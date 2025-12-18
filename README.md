@@ -415,11 +415,21 @@ Los parámetros $[k_0, k, a]$ identificados por metaheurísticos pueden usarse p
 
 ---
 
-## 🎬 Video: Observador KAN-PINN
+## 🎬 Videos Explicativos
 
-![KAN-PINN Explicación](videos/kan_pinn_explicacion.gif)
+### 1. El Problema Físico
+![Problema Físico](videos/01_problema_fisico.gif)
 
-*Animación generada con Manim - Arquitectura y entrenamiento del observador KAN-PINN*
+### 2. Función de Fitness (MSE)
+![Función Fitness](videos/02_funcion_fitness.gif)
+
+### 3. Arquitectura KAN-PINN
+![Arquitectura KAN](videos/03_arquitectura_kan.gif)
+
+### 4. Algoritmos Metaheurísticos
+![Metaheurísticos](videos/04_metaheuristicos.gif)
+
+*Animaciones generadas con Manim*
 
 ---
 
