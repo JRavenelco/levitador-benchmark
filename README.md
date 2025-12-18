@@ -205,6 +205,40 @@ mejor_solucion = [0.0363, 0.0035, 0.0052]
 problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 ```
 
+---
+
+## 📓 Jupyter Notebooks Tutoriales
+
+El repositorio incluye dos notebooks interactivos:
+
+### 1. **benchmark_tutorial.ipynb** - Tutorial del Benchmark con Visualizaciones
+
+Tutorial completo que demuestra el uso del benchmark con visualizaciones detalladas:
+
+- 📊 Visualización de datos experimentales
+- 🗺️ Exploración del espacio de parámetros
+- 🔬 Paisaje de fitness (fitness landscape)
+- 📈 Comparación de soluciones
+- 🚀 Ejemplos de optimización con análisis visual
+
+```bash
+# Abrir el tutorial del benchmark
+jupyter notebook benchmark_tutorial.ipynb
+```
+
+### 2. **tutorial_metaheuristicas.ipynb** - Implementación de Algoritmos
+
+Tutorial interactivo para implementar y comparar tus propios algoritmos metaheurísticos:
+
+- 🧬 Plantilla base para algoritmos
+- 🔬 Ejemplos completos (Evolución Diferencial, etc.)
+- 📊 Protocolo de comparación
+- 📝 Formato de entrega de resultados
+
+```bash
+# Abrir el tutorial de metaheurísticas
+jupyter notebook tutorial_metaheuristicas.ipynb
+```
 
 ---
 
@@ -212,19 +246,20 @@ problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 
 ```
 levitador-benchmark/
-├── README.md                    # Este archivo
-├── LICENSE                      # Licencia MIT
-├── requirements.txt             # Dependencias del proyecto
-├── levitador_benchmark.py       # Clase principal del benchmark
-├── example_optimization.py      # Ejemplos de algoritmos
-├── tutorial_metaheuristicas.ipynb  # Notebook tutorial interactivo
+├── README.md                         # Este archivo
+├── LICENSE                           # Licencia MIT
+├── requirements.txt                  # Dependencias del proyecto
+├── levitador_benchmark.py            # Clase principal del benchmark
+├── example_optimization.py           # Ejemplos de algoritmos
+├── benchmark_tutorial.ipynb          # 📓 Tutorial del benchmark con visualizaciones
+├── tutorial_metaheuristicas.ipynb    # 📓 Tutorial para implementar algoritmos
 ├── data/
-│   └── datos_levitador.txt      # Datos experimentales reales
+│   └── datos_levitador.txt           # Datos experimentales reales
 ├── docs/
-│   └── formato_datos.md         # Descripción del formato de datos
+│   └── formato_datos.md              # Descripción del formato de datos
 ├── tests/
-│   └── test_benchmark.py        # Tests unitarios (pytest)
-└── videos/                      # Videos explicativos
+│   └── test_benchmark.py             # Tests unitarios (pytest)
+└── videos/                           # Videos explicativos
     ├── 01_problema_fisico.mp4
     ├── 02_funcion_fitness.mp4
     └── 03_como_optimizar.mp4
