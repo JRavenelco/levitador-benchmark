@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Levitador Magnético Benchmark: Problema de Optimización Real para Metaheurísticas"
+version: 1.0.0
+date-released: 2024-01-01
+url: "https://github.com/JRavenelco/levitador-benchmark"
+repository-code: "https://github.com/JRavenelco/levitador-benchmark"
+license: MIT
+authors:
+  - family-names: "Santana Ramírez"
+    given-names: "José de Jesús"
+    orcid: "https://orcid.org/0000-0002-6183-7379"
+    email: "jesus.santana@uaq.mx"
+    affiliation: "Universidad Autónoma de Querétaro"
+keywords:
+  - optimization
+  - benchmark
+  - metaheuristics
+  - magnetic levitation
+  - bio-inspired algorithms
+abstract: "Este benchmark proporciona un problema de optimización del mundo real basado en un sistema de levitación magnética. El objetivo es identificar los parámetros físicos de un electroimán que minimizan el error entre un modelo dinámico (gemelo digital) y datos experimentales reales."
