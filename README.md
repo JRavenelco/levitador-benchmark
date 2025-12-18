@@ -321,11 +321,12 @@ Ver [docs/DOE_experimentos.md](docs/DOE_experimentos.md) para:
 
 ```bibtex
 @software{levitador_benchmark,
-  author = {Santana-Vilchis, Jesús},
+  author = {Santana-Ramírez, José de Jesús},
   title = {Levitador Magnético Benchmark: Problema de Optimización Real para Metaheurísticas},
   year = {2024},
   url = {https://github.com/JRavenelco/levitador-benchmark},
-  note = {Universidad Autónoma de Querétaro}
+  note = {Universidad Autónoma de Querétaro},
+  orcid = {0000-0002-6183-7379}
 }
 ```
 
@@ -339,9 +340,89 @@ Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ## 📧 Contacto
 
-- **Autor:** [Jesús](https://orcid.org/0000-0002-6183-7379)
-- **Institución:** Doctorado UAQ
-- **Email:** [jesus.santana@uaq.mx]
+- **Autor:** José de Jesús Santana Ramírez
+- **ORCID:** [0000-0002-6183-7379](https://orcid.org/0000-0002-6183-7379)
+- **Institución:** Doctorado en Ingeniería, Universidad Autónoma de Querétaro
+- **Email:** jesus.santana@uaq.mx
+
+---
+
+## 🧠 KAN-PINN: Observador Neuronal con Física
+
+### Descripción
+
+Además de la optimización de parámetros, este proyecto incluye un **observador de estado basado en KAN-PINN** (Kolmogorov-Arnold Networks + Physics-Informed Neural Networks) para estimar la posición de la esfera sin sensor directo.
+
+### Arquitectura
+
+```
+Entradas: [i, L_est, u]
+    │
+    ▼
+┌─────────────────────────────┐
+│  KAN Layer 1: 3 → 32        │  B-splines + Residual
+├─────────────────────────────┤
+│  KAN Layer 2: 32 → 32       │  B-splines + Residual
+├─────────────────────────────┤
+│  KAN Layer 3: 32 → 1        │  B-splines + Residual
+└─────────────────────────────┘
+    │
+    ▼
+Salida: y (posición estimada)
+```
+
+### Pérdida Física (PINN)
+
+La red se entrena minimizando:
+
+$$\mathcal{L} = \mathcal{L}_{datos} + \lambda \mathcal{L}_{física}$$
+
+Donde la pérdida física impone la consistencia con el modelo de inductancia:
+
+$$L(y) = k_0 + \frac{k}{1 + y/a}$$
+
+### Resultados del Entrenamiento
+
+| Métrica | Valor |
+|---------|-------|
+| Correlación | 0.589 |
+| MAE | 2.88 mm |
+| Datasets | 5 (~13k muestras) |
+
+### Uso del Observador
+
+```python
+from pinn.kan_observador import KANObservador
+import torch
+
+# Cargar modelo entrenado
+model = KANObservador(hidden=32, depth=2, num_knots=8)
+checkpoint = torch.load('pinn/kan_observador_*.pt')
+model.load_state_dict(checkpoint['model_state'])
+model.eval()
+
+# Inferencia
+X = torch.tensor([[i, L_est, u]])  # [corriente, inductancia, voltaje]
+y_estimado = model(X)
+```
+
+### Validación con Metaheurísticos
+
+Los parámetros $[k_0, k, a]$ identificados por metaheurísticos pueden usarse para:
+1. **Validar** el modelo físico del KAN-PINN
+2. **Comparar** estimación KAN vs fórmula analítica
+3. **Mejorar** la pérdida física con parámetros más precisos
+
+---
+
+## 🎬 Videos Explicativos
+
+| Video | Descripción | Enlace |
+|-------|-------------|--------|
+| 01 | Problema físico del levitador | [videos/01_problema_fisico.mp4](videos/) |
+| 02 | Función de fitness y MSE | [videos/02_funcion_fitness.mp4](videos/) |
+| 03 | Cómo usar metaheurísticos | [videos/03_como_optimizar.mp4](videos/) |
+| 04 | Observador KAN-PINN | [videos/04_kan_pinn.mp4](videos/) |
 
 ---
 
