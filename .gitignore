@@ -3,3 +3,7 @@ __pycache__/
 media/
 manim_benchmark.py
 .DS_Store
+.coverage
+.pytest_cache/
+*.egg-info/
+htmlcov/
