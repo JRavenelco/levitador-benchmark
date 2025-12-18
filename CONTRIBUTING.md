@@ -711,8 +711,14 @@ Extender `LevitadorBenchmark` para soportar:
 class MultiObjectiveBenchmark(LevitadorBenchmark):
     def fitness_function(self, individuo):
         mse = super().fitness_function(individuo)
+        # Implementar evaluación de robustez aquí
         robustness = self._evaluate_robustness(individuo)
         return [mse, robustness]
+    
+    def _evaluate_robustness(self, individuo):
+        """Evalúa la robustez de la solución ante perturbaciones."""
+        # Placeholder - implementar lógica específica
+        pass
 ```
 
 ### Alternativas Consideradas
