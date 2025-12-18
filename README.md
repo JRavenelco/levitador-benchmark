@@ -315,6 +315,12 @@ Ver [docs/DOE_experimentos.md](docs/DOE_experimentos.md) para:
 2. Comparte mejoras al código via Pull Request
 3. Cita este trabajo en tus publicaciones
 
+**Para contribuir implementaciones de metaheurísticas, consulta [CONTRIBUTING.md](CONTRIBUTING.md)** que incluye:
+- Guía completa para implementar nuevos algoritmos
+- Plantillas de código y ejemplos
+- Requisitos y estándares de código
+- Proceso de Pull Request
+
 ---
 
 ## 📚 Citar este Trabajo
