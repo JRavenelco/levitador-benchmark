@@ -3,3 +3,25 @@ __pycache__/
 media/
 manim_benchmark.py
 .DS_Store
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Results and outputs
+results/
+*.png
+*.pdf
+*.json
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.log

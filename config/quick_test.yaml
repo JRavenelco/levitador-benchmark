@@ -1,0 +1,36 @@
+# Quick Test Configuration
+# ========================
+# Faster settings for testing
+
+benchmark:
+  data_path: null  # Use synthetic data
+  random_seed: 42
+  noise_level: 1.0e-5
+  verbose: false
+
+optimizers:
+  
+  RandomSearch:
+    n_iterations: 100
+    random_seed: 42
+    verbose: false
+  
+  DifferentialEvolution:
+    pop_size: 15
+    max_iter: 20
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+  
+  GreyWolfOptimizer:
+    pop_size: 15
+    max_iter: 20
+    random_seed: 42
+    verbose: false
+
+benchmark_settings:
+  n_trials: 3
+  parallel: false
+  save_history: true
+  output_dir: "results/quick_test"
