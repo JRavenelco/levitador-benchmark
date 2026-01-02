@@ -1,0 +1,71 @@
+# Full Comparison Configuration
+# ==============================
+# Comprehensive comparison of all algorithms
+
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  noise_level: 1.0e-5
+  verbose: true
+
+optimizers:
+  
+  RandomSearch:
+    n_iterations: 3000
+    random_seed: 42
+    verbose: true
+  
+  DifferentialEvolution:
+    pop_size: 50
+    max_iter: 150
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: true
+  
+  GeneticAlgorithm:
+    pop_size: 50
+    generations: 100
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5
+    random_seed: 42
+    verbose: true
+  
+  GreyWolfOptimizer:
+    pop_size: 50
+    max_iter: 150
+    random_seed: 42
+    verbose: true
+  
+  ArtificialBeeColony:
+    pop_size: 50
+    max_iter: 150
+    limit: null
+    random_seed: 42
+    verbose: true
+  
+  HoneyBadgerAlgorithm:
+    pop_size: 50
+    max_iter: 150
+    beta: 6.0
+    random_seed: 42
+    verbose: true
+  
+  ShrimpOptimizer:
+    pop_size: 50
+    max_iter: 150
+    random_seed: 42
+    verbose: true
+  
+  TianjiOptimizer:
+    pop_size: 51  # Divisible by 3
+    max_iter: 150
+    random_seed: 42
+    verbose: true
+
+benchmark_settings:
+  n_trials: 30  # Statistical significance
+  parallel: true
+  save_history: true
+  output_dir: "results/full_comparison"

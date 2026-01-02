@@ -1,0 +1,81 @@
+# Default Configuration for Levitador Benchmark
+# ==============================================
+
+# Benchmark settings
+benchmark:
+  data_path: "data/datos_levitador.txt"  # Path to experimental data (null for synthetic)
+  random_seed: 42  # Random seed for reproducibility
+  noise_level: 1.0e-5  # Noise level for synthetic data
+  verbose: true
+
+# Optimizer configurations
+optimizers:
+  
+  # Random Search (baseline)
+  RandomSearch:
+    n_iterations: 1000
+    random_seed: 42
+    verbose: true
+  
+  # Differential Evolution
+  DifferentialEvolution:
+    pop_size: 30
+    max_iter: 100
+    F: 0.8  # Mutation factor
+    CR: 0.9  # Crossover probability
+    random_seed: 42
+    verbose: true
+  
+  # Genetic Algorithm
+  GeneticAlgorithm:
+    pop_size: 30
+    generations: 50
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5  # BLX-alpha parameter
+    random_seed: 42
+    verbose: true
+  
+  # Grey Wolf Optimizer
+  GreyWolfOptimizer:
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: true
+  
+  # Artificial Bee Colony
+  ArtificialBeeColony:
+    pop_size: 30
+    max_iter: 100
+    limit: null  # Auto: pop_size * dim
+    random_seed: 42
+    verbose: true
+  
+  # Honey Badger Algorithm
+  HoneyBadgerAlgorithm:
+    pop_size: 30
+    max_iter: 100
+    beta: 6.0
+    random_seed: 42
+    verbose: true
+  
+  # Shrimp Optimizer
+  ShrimpOptimizer:
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: true
+  
+  # Tianji Horse Racing
+  TianjiOptimizer:
+    pop_size: 30  # Should be divisible by 3
+    max_iter: 100
+    random_seed: 42
+    verbose: true
+
+# Benchmark settings
+benchmark_settings:
+  n_trials: 10  # Number of independent runs per optimizer
+  parallel: false  # Run optimizers in parallel
+  save_history: true  # Save convergence history
+  output_dir: "results"  # Directory for results
