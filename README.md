@@ -19,6 +19,18 @@ A diferencia de funciones de prueba sintéticas (Rosenbrock, Rastrigin, etc.), e
 - ✅ Incluye **datos experimentales** para validación
 - ✅ Es **multimodal** y presenta retos de convergencia
 
+### 🆕 Nuevo: Framework Modular de Optimización
+
+El repositorio ahora incluye un **framework modular** con 8 algoritmos bio-inspirados implementados:
+- Random Search (baseline)
+- Differential Evolution
+- Genetic Algorithm
+- Grey Wolf Optimizer
+- Artificial Bee Colony
+- Honey Badger Algorithm
+- Shrimp Optimization Algorithm
+- Tianji Horse Racing Strategy
+
 ---
 
 ## 🎯 El Problema de Optimización
@@ -57,10 +69,9 @@ Encontrar $[k_0, k, a]$ que minimicen el **Error Cuadrático Medio (MSE)** entre
 
 ### Requisitos
 - Python 3.8+
-- NumPy
-- SciPy
-- Pandas (para cargar datos)
-- Matplotlib (opcional, para visualización)
+- NumPy, SciPy, Pandas
+- Matplotlib (para visualización)
+- PyYAML (para configuraciones)
 
 ### Instalación rápida
 
@@ -70,141 +81,100 @@ git clone https://github.com/JRavenelco/levitador-benchmark.git
 cd levitador-benchmark
 
 # Instalar dependencias
-pip install numpy scipy pandas matplotlib
+pip install -r requirements.txt
 ```
 
 ---
 
 ## 💻 Uso
 
-### Ejemplo Básico
+### Opción 1: Script de Benchmark (Recomendado)
+
+El script de benchmark permite comparar múltiples algoritmos fácilmente:
+
+```bash
+# Ejecutar benchmark completo con configuración por defecto
+python scripts/run_benchmark.py --config config/default.yaml
+
+# Test rápido con pocos trials
+python scripts/run_benchmark.py --config config/quick_test.yaml
+
+# Ejecutar solo un algoritmo específico
+python scripts/run_benchmark.py --config config/default.yaml --optimizer GreyWolfOptimizer
+
+# Comparación completa (30 trials por algoritmo)
+python scripts/run_benchmark.py --config config/full_comparison.yaml
+```
+
+**Salida del benchmark:**
+- Resultados en `results/` (JSON con métricas)
+- Gráficas de convergencia
+- Box plots comparativos
+- Métricas de rendimiento
+- Comparación de tiempos de ejecución
+
+### Opción 2: Uso Programático (Python)
+
+#### Ejemplo Básico
 
 ```python
 from levitador_benchmark import LevitadorBenchmark
+from src.optimization import GreyWolfOptimizer
 
-# 1. Crear instancia del problema
+# Crear instancia del problema
 problema = LevitadorBenchmark()
 
-# 2. Evaluar una solución candidata
-solucion = [0.036, 0.0035, 0.005]  # [k0, k, a]
-error = problema.fitness_function(solucion)
+# Crear y ejecutar optimizador
+optimizer = GreyWolfOptimizer(problema, pop_size=30, max_iter=100, random_seed=42)
+best_solution, best_fitness = optimizer.optimize()
 
-print(f"Error MSE: {error:.6e}")
+print(f"Mejor solución: k0={best_solution[0]:.6f}, k={best_solution[1]:.6f}, a={best_solution[2]:.6f}")
+print(f"Error MSE: {best_fitness:.6e}")
 ```
 
-### Con Datos Experimentales Reales
+#### Comparar Múltiples Algoritmos
 
 ```python
-problema = LevitadorBenchmark("data/datos_levitador.txt")
-```
+from levitador_benchmark import LevitadorBenchmark
+from src.optimization import (
+    DifferentialEvolution, GreyWolfOptimizer, 
+    ArtificialBeeColony, HoneyBadgerAlgorithm
+)
 
-### Control de Reproducibilidad
-
-```python
-# Usar semilla para resultados reproducibles
 problema = LevitadorBenchmark(random_seed=42)
 
-# Configurar nivel de ruido para datos sintéticos
-problema = LevitadorBenchmark(noise_level=1e-4, random_seed=42)
+algorithms = {
+    'DE': DifferentialEvolution(problema, pop_size=30, max_iter=50, random_seed=42),
+    'GWO': GreyWolfOptimizer(problema, pop_size=30, max_iter=50, random_seed=42),
+    'ABC': ArtificialBeeColony(problema, pop_size=30, max_iter=50, random_seed=42),
+    'HBA': HoneyBadgerAlgorithm(problema, pop_size=30, max_iter=50, random_seed=42),
+}
+
+results = {}
+for name, algo in algorithms.items():
+    print(f"\nRunning {name}...")
+    best_sol, best_fit = algo.optimize()
+    results[name] = best_fit
+    print(f"  Fitness: {best_fit:.6e}")
+
+# Mostrar ranking
+for name in sorted(results, key=results.get):
+    print(f"{name}: {results[name]:.6e}")
 ```
 
-### Integración con Algoritmos de Optimización
+### Opción 3: Jupyter Notebook (Interactivo)
 
-#### Evolución Diferencial (SciPy)
+Abre el notebook de demostración:
 
-```python
-from scipy.optimize import differential_evolution
-from levitador_benchmark import LevitadorBenchmark
-
-problema = LevitadorBenchmark()
-
-resultado = differential_evolution(
-    problema.fitness_function,
-    problema.bounds,
-    strategy='best1bin',
-    maxiter=100,
-    popsize=20,
-    disp=True
-)
-
-print(f"Mejor solución: {resultado.x}")
-print(f"Error final: {resultado.fun:.6e}")
+```bash
+jupyter notebook notebooks/parameter_identification_demo.ipynb
 ```
 
-#### Algoritmo Genético (DEAP)
-
-```python
-from deap import base, creator, tools, algorithms
-from levitador_benchmark import LevitadorBenchmark
-import numpy as np
-
-problema = LevitadorBenchmark()
-
-# Configuración DEAP
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-creator.create("Individual", list, fitness=creator.FitnessMin)
-
-toolbox = base.Toolbox()
-
-# Generador de individuos
-def create_individual():
-    return [np.random.uniform(lb, ub) for lb, ub in problema.bounds]
-
-toolbox.register("individual", tools.initIterate, creator.Individual, create_individual)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("evaluate", lambda ind: (problema.fitness_function(ind),))
-toolbox.register("mate", tools.cxBlend, alpha=0.5)
-toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.01, indpb=0.2)
-toolbox.register("select", tools.selTournament, tournsize=3)
-
-# Ejecutar
-pop = toolbox.population(n=50)
-result = algorithms.eaSimple(pop, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=True)
-```
-
-#### Enjambre de Partículas (PySwarms)
-
-```python
-import pyswarms as ps
-from levitador_benchmark import LevitadorBenchmark
-import numpy as np
-
-problema = LevitadorBenchmark()
-lb, ub = problema.get_bounds_array()
-
-# Función wrapper para PySwarms (espera matriz de partículas)
-def fitness_swarm(particles):
-    return np.array([problema.fitness_function(p) for p in particles])
-
-# Configurar PSO
-options = {'c1': 0.5, 'c2': 0.3, 'w': 0.9}
-optimizer = ps.single.GlobalBestPSO(
-    n_particles=30,
-    dimensions=3,
-    options=options,
-    bounds=(lb, ub)
-)
-
-# Ejecutar
-best_cost, best_pos = optimizer.optimize(fitness_swarm, iters=100)
-print(f"Mejor posición: {best_pos}")
-print(f"Mejor costo: {best_cost:.6e}")
-```
-
----
-
-## 📊 Visualización de Resultados
-
-```python
-from levitador_benchmark import LevitadorBenchmark
-
-problema = LevitadorBenchmark()
-mejor_solucion = [0.0363, 0.0035, 0.0052]
-
-# Generar gráfica comparativa
-problema.visualize_solution(mejor_solucion, save_path="resultado.png")
-```
-
+El notebook incluye:
+- Ejemplos de uso de cada algoritmo
+- Visualización de convergencia
+- Comparación estadística
+- Análisis de resultados
 
 ---
 
@@ -212,45 +182,136 @@ problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 
 ```
 levitador-benchmark/
-├── README.md                    # Este archivo
-├── LICENSE                      # Licencia MIT
-├── requirements.txt             # Dependencias del proyecto
-├── levitador_benchmark.py       # Clase principal del benchmark
-├── example_optimization.py      # Ejemplos de algoritmos
-├── tutorial_metaheuristicas.ipynb  # Notebook tutorial interactivo
-├── data/
-│   └── datos_levitador.txt      # Datos experimentales reales
-├── docs/
-│   └── formato_datos.md         # Descripción del formato de datos
-├── tests/
-│   └── test_benchmark.py        # Tests unitarios (pytest)
-└── videos/                      # Videos explicativos
-    ├── 01_problema_fisico.mp4
-    ├── 02_funcion_fitness.mp4
-    └── 03_como_optimizar.mp4
+├── README.md                           # Este archivo
+├── LICENSE                             # Licencia MIT
+├── requirements.txt                    # Dependencias
+├── levitador_benchmark.py              # Clase principal del benchmark
+├── example_optimization.py             # Ejemplos legacy (compatibilidad)
+│
+├── src/                                # Código fuente modular
+│   ├── optimization/                   # Algoritmos de optimización
+│   │   ├── base_optimizer.py          # Clase base abstracta
+│   │   ├── random_search.py           # Random Search
+│   │   ├── differential_evolution.py  # Differential Evolution
+│   │   ├── genetic_algorithm.py       # Genetic Algorithm
+│   │   ├── grey_wolf.py               # Grey Wolf Optimizer
+│   │   ├── artificial_bee_colony.py   # Artificial Bee Colony
+│   │   ├── honey_badger.py            # Honey Badger Algorithm
+│   │   ├── shrimp.py                  # Shrimp Optimizer
+│   │   └── tianji.py                  # Tianji Horse Racing
+│   │
+│   ├── visualization/                  # Utilidades de visualización
+│   │   └── plots.py                   # Funciones de gráficas
+│   │
+│   ├── utils/                         # Utilidades generales
+│   │   └── config_loader.py           # Cargador de configuraciones YAML
+│   │
+│   ├── data/                          # Módulo de datos
+│   └── models/                        # Módulo de modelos
+│
+├── config/                            # Configuraciones YAML
+│   ├── default.yaml                   # Configuración por defecto
+│   ├── quick_test.yaml               # Test rápido
+│   └── full_comparison.yaml          # Comparación completa
+│
+├── scripts/                           # Scripts ejecutables
+│   └── run_benchmark.py              # Script principal de benchmark
+│
+├── notebooks/                         # Jupyter notebooks
+│   └── parameter_identification_demo.ipynb
+│
+├── data/                              # Datos experimentales
+│   └── datos_levitador.txt           # Datos del levitador real
+│
+├── tests/                             # Tests unitarios
+│   └── test_benchmark.py             # Tests del benchmark
+│
+└── docs/                              # Documentación adicional
+    ├── DOE_experimentos.md
+    └── formato_datos.md
 ```
 
 ---
 
-## 🔬 Detalles Físicos
+## 🔧 Configuración (YAML)
 
-### Ecuaciones del Sistema
+Los algoritmos se configuran mediante archivos YAML. Ejemplo:
 
-El modelo dinámico se basa en las ecuaciones de **Euler-Lagrange**:
+```yaml
+# config/default.yaml
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  verbose: true
 
-**Ecuación Mecánica (Newton):**
-$$m\ddot{y} = \frac{1}{2}\frac{\partial L}{\partial y}i^2 + mg$$
+optimizers:
+  GreyWolfOptimizer:
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: true
+  
+  DifferentialEvolution:
+    pop_size: 30
+    max_iter: 100
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: true
 
-**Ecuación Eléctrica (Kirchhoff):**
-$$L(y)\frac{di}{dt} + \frac{\partial L}{\partial y}\dot{y}i + Ri = u$$
+benchmark_settings:
+  n_trials: 10
+  save_history: true
+  output_dir: "results"
+```
 
-### Constantes del Sistema
+---
 
-| Constante | Valor | Descripción |
-|-----------|-------|-------------|
-| $m$ | 0.018 kg | Masa de la esfera |
-| $g$ | 9.81 m/s² | Aceleración gravitacional |
-| $R$ | 2.72 Ω | Resistencia de la bobina |
+## 📊 Algoritmos Implementados
+
+### 1. Random Search
+Búsqueda aleatoria (baseline).
+- **Clase:** `RandomSearch`
+- **Parámetros:** `n_iterations`
+
+### 2. Differential Evolution (DE)
+Evolución Diferencial clásica (DE/rand/1/bin).
+- **Clase:** `DifferentialEvolution`
+- **Parámetros:** `pop_size`, `max_iter`, `F`, `CR`
+- **Referencia:** Storn & Price (1997)
+
+### 3. Genetic Algorithm (GA)
+Algoritmo genético con selección por torneo y BLX-alpha.
+- **Clase:** `GeneticAlgorithm`
+- **Parámetros:** `pop_size`, `generations`, `crossover_prob`, `mutation_prob`
+
+### 4. Grey Wolf Optimizer (GWO)
+Inspirado en la jerarquía y caza de lobos grises.
+- **Clase:** `GreyWolfOptimizer`
+- **Parámetros:** `pop_size`, `max_iter`
+- **Referencia:** Mirjalili et al. (2014)
+
+### 5. Artificial Bee Colony (ABC)
+Basado en el comportamiento de abejas melíferas.
+- **Clase:** `ArtificialBeeColony`
+- **Parámetros:** `pop_size`, `max_iter`, `limit`
+- **Referencia:** Karaboga (2005)
+
+### 6. Honey Badger Algorithm (HBA)
+Inspirado en el comportamiento del tejón de miel.
+- **Clase:** `HoneyBadgerAlgorithm`
+- **Parámetros:** `pop_size`, `max_iter`, `beta`
+- **Referencia:** Hashim et al. (2022)
+
+### 7. Shrimp Optimization Algorithm (SOA)
+Basado en el comportamiento del camarón mantis.
+- **Clase:** `ShrimpOptimizer`
+- **Parámetros:** `pop_size`, `max_iter`
+
+### 8. Tianji Horse Racing Strategy
+Estrategia china antigua aplicada a optimización.
+- **Clase:** `TianjiOptimizer`
+- **Parámetros:** `pop_size`, `max_iter`
 
 ---
 
@@ -268,52 +329,17 @@ Los algoritmos bien sintonizados deberían converger a soluciones cercanas con M
 
 ---
 
-## 🔬 Diseño de Experimentos (DOE)
+## 🧪 Tests
 
-El repositorio incluye un DOE estructurado para generar datos experimentales diversos.
-
-### Experimentos Disponibles
-
-| Fase | Experimentos | Descripción |
-|------|--------------|-------------|
-| **1** | E01, E02, E07, E08, E11 | Caracterización básica (escalones, senoidales) |
-| **2** | E03-E06, E09-E10 | Caracterización extendida (rampas, pulsos) |
-| **3** | V01-V06 | Validación (repeticiones) |
-| **4** | E12 | Robustez (PRBS) |
-
-### Ejecutar Experimentos
+Ejecutar tests unitarios:
 
 ```bash
-# Listar experimentos disponibles
-python experimentos_doe.py --listar
+# Instalar pytest si no está instalado
+pip install pytest
 
-# Ejecutar en modo simulación (sin hardware)
-python experimentos_doe.py --fase 1 --simular
-
-# Ejecutar experimento específico
-python experimentos_doe.py --experimento E01
-
-# Ejecutar todos los experimentos
-python experimentos_doe.py --todos
+# Ejecutar tests
+pytest tests/test_benchmark.py -v
 ```
-
-### Documentación Completa
-
-Ver [docs/DOE_experimentos.md](docs/DOE_experimentos.md) para:
-- Definición de factores y niveles
-- Protocolo experimental
-- Métricas a calcular
-- Análisis posterior
-
----
-
-## 🤝 Contribuciones
-
-¡Las contribuciones son bienvenidas! Si usas este benchmark en tu investigación:
-
-1. Reporta tus resultados abriendo un Issue
-2. Comparte mejoras al código via Pull Request
-3. Cita este trabajo en tus publicaciones
 
 ---
 
@@ -328,6 +354,47 @@ Ver [docs/DOE_experimentos.md](docs/DOE_experimentos.md) para:
   note = {Universidad Autónoma de Querétaro},
   orcid = {0000-0002-6183-7379}
 }
+```
+
+---
+
+## 🤝 Contribuciones
+
+¡Las contribuciones son bienvenidas! Para contribuir:
+
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-caracteristica`)
+3. Commit tus cambios (`git commit -m 'Agregar nueva característica'`)
+4. Push a la rama (`git push origin feature/nueva-caracteristica`)
+5. Abre un Pull Request
+
+### Agregar un Nuevo Algoritmo
+
+Para agregar un nuevo optimizador:
+
+1. Crea un archivo en `src/optimization/mi_algoritmo.py`
+2. Hereda de `BaseOptimizer`
+3. Implementa el método `optimize()`
+4. Agrega el algoritmo a `src/optimization/__init__.py`
+5. Agrega configuración en `config/default.yaml`
+6. Actualiza la documentación
+
+Ejemplo:
+
+```python
+from .base_optimizer import BaseOptimizer
+import numpy as np
+
+class MiAlgoritmo(BaseOptimizer):
+    def __init__(self, problema, param1=10, **kwargs):
+        super().__init__(problema, **kwargs)
+        self.param1 = param1
+    
+    def optimize(self):
+        # Tu implementación aquí
+        best_solution = ...
+        best_fitness = ...
+        return best_solution, best_fitness
 ```
 
 ---
@@ -347,89 +414,6 @@ Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ---
 
-## 🧠 KAN-PINN: Observador Neuronal con Física
+## 🎓 Reconocimientos
 
-### Descripción
-
-Además de la optimización de parámetros, este proyecto incluye un **observador de estado basado en KAN-PINN** (Kolmogorov-Arnold Networks + Physics-Informed Neural Networks) para estimar la posición de la esfera sin sensor directo.
-
-### Arquitectura
-
-```
-Entradas: [i, L_est, u]
-    │
-    ▼
-┌─────────────────────────────┐
-│  KAN Layer 1: 3 → 32        │  B-splines + Residual
-├─────────────────────────────┤
-│  KAN Layer 2: 32 → 32       │  B-splines + Residual
-├─────────────────────────────┤
-│  KAN Layer 3: 32 → 1        │  B-splines + Residual
-└─────────────────────────────┘
-    │
-    ▼
-Salida: y (posición estimada)
-```
-
-### Pérdida Física (PINN)
-
-La red se entrena minimizando:
-
-$$\mathcal{L} = \mathcal{L}_{datos} + \lambda \mathcal{L}_{física}$$
-
-Donde la pérdida física impone la consistencia con el modelo de inductancia:
-
-$$L(y) = k_0 + \frac{k}{1 + y/a}$$
-
-### Resultados del Entrenamiento
-
-| Métrica | Valor |
-|---------|-------|
-| Correlación | 0.589 |
-| MAE | 2.88 mm |
-| Datasets | 5 (~13k muestras) |
-
-### Uso del Observador
-
-```python
-from pinn.kan_observador import KANObservador
-import torch
-
-# Cargar modelo entrenado
-model = KANObservador(hidden=32, depth=2, num_knots=8)
-checkpoint = torch.load('pinn/kan_observador_*.pt')
-model.load_state_dict(checkpoint['model_state'])
-model.eval()
-
-# Inferencia
-X = torch.tensor([[i, L_est, u]])  # [corriente, inductancia, voltaje]
-y_estimado = model(X)
-```
-
-### Validación con Metaheurísticos
-
-Los parámetros $[k_0, k, a]$ identificados por metaheurísticos pueden usarse para:
-1. **Validar** el modelo físico del KAN-PINN
-2. **Comparar** estimación KAN vs fórmula analítica
-3. **Mejorar** la pérdida física con parámetros más precisos
-
----
-
-## 🎬 Videos Explicativos
-
-### 1. El Problema Físico
-![Problema Físico](videos/01_problema_fisico.gif)
-
-### 2. Función de Fitness (MSE)
-![Función Fitness](videos/02_funcion_fitness.gif)
-
-### 3. Arquitectura KAN-PINN
-![Arquitectura KAN](videos/03_arquitectura_kan.gif)
-
-### 4. Algoritmos Metaheurísticos
-![Metaheurísticos](videos/04_metaheuristicos.gif)
-
-*Animaciones generadas con Manim*
-
----
-
+Este trabajo es parte de la investigación doctoral en la Universidad Autónoma de Querétaro sobre control y optimización de sistemas no lineales.

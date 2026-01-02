@@ -84,8 +84,9 @@ class ShrimpOptimizer(BaseOptimizer):
     
     def _levy_flight(self, beta=1.5):
         """Generate Lévy flight step."""
-        sigma = (np.math.gamma(1 + beta) * np.sin(np.pi * beta / 2) /
-                 (np.math.gamma((1 + beta) / 2) * beta * 2**((beta - 1) / 2)))**(1 / beta)
+        from math import gamma, sin, pi
+        sigma = (gamma(1 + beta) * sin(pi * beta / 2) /
+                 (gamma((1 + beta) / 2) * beta * 2**((beta - 1) / 2)))**(1 / beta)
         u = self._rng.normal(0, sigma, self.dim)
         v = self._rng.normal(0, 1, self.dim)
         return u / (np.abs(v)**(1 / beta))
