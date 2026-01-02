@@ -30,9 +30,8 @@ from src.optimization import (
     GreyWolfOptimizer, ArtificialBeeColony, HoneyBadgerAlgorithm,
     ShrimpOptimizer, TianjiOptimizer
 )
-from src.utils import load_config
-from src.visualization import plot_convergence, plot_boxplot, plot_runtime, plot_comparison
-from src.visualization.convergence_plot import plot_multiple_trials
+from src.utils import load_config, validate_config
+from src.visualization import plot_convergence, plot_boxplot, plot_runtime, plot_comparison, plot_multiple_trials
 
 
 # Algorithm registry
@@ -110,6 +109,14 @@ def run_benchmark(config_path: str, selected_algorithms: List[str] = None,
     # Load configuration
     print(f"\n[1/5] Loading configuration from: {config_path}")
     config = load_config(config_path)
+    
+    # Validate configuration
+    try:
+        validate_config(config)
+        print("  ✓ Configuration validated")
+    except ValueError as e:
+        print(f"  ✗ Configuration validation failed: {e}")
+        raise
     
     # Setup benchmark problem
     print("[2/5] Setting up benchmark problem...")
