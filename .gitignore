@@ -6,3 +6,11 @@ manim_benchmark.py
 pso_result.png
 ga_result.png
 de_result.png
+
+# Build and results directories
+results/
+plots/
+*.npz
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

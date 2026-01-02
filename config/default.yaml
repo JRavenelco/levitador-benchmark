@@ -1,0 +1,90 @@
+# Default Configuration for Levitador Benchmark
+# ==============================================
+# This configuration provides balanced settings for comprehensive
+# optimization algorithm testing.
+
+# Benchmark settings
+benchmark:
+  data_path: "data/datos_levitador.txt"  # Path to experimental data
+  random_seed: 42  # For reproducibility
+  noise_level: 1e-5  # Noise level for synthetic data (if no real data)
+
+# Global optimization settings
+optimization:
+  n_trials: 5  # Number of independent trials per algorithm
+  max_workers: 1  # Number of parallel workers (1 = sequential)
+  save_results: true  # Save results to file
+  output_dir: "results"  # Directory for results
+
+# Algorithm configurations
+algorithms:
+  RandomSearch:
+    enabled: true
+    n_iterations: 1000
+    random_seed: 42
+    verbose: false
+  
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    F: 0.8  # Mutation factor
+    CR: 0.9  # Crossover rate
+    random_seed: 42
+    verbose: false
+  
+  GeneticAlgorithm:
+    enabled: true
+    pop_size: 30
+    generations: 100
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5  # BLX-alpha parameter
+    random_seed: 42
+    verbose: false
+  
+  GreyWolfOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+  
+  ArtificialBeeColony:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    limit: null  # Will be set to pop_size * dim
+    random_seed: 42
+    verbose: false
+  
+  HoneyBadgerAlgorithm:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    beta: 6.0
+    random_seed: 42
+    verbose: false
+  
+  ShrimpOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+  
+  TianjiOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+
+# Visualization settings
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  plot_runtime: true
+  save_plots: true
+  plot_dir: "plots"
+  dpi: 300  # Plot resolution

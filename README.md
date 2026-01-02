@@ -75,9 +75,80 @@ pip install numpy scipy pandas matplotlib
 
 ---
 
+## 🏗️ Arquitectura Modular
+
+El repositorio incluye un framework modular completo para ejecutar y comparar múltiples algoritmos de optimización:
+
+```
+levitador-benchmark/
+├── src/
+│   ├── optimization/          # Algoritmos de optimización
+│   │   ├── base_optimizer.py  # Clase base abstracta
+│   │   ├── random_search.py
+│   │   ├── differential_evolution.py
+│   │   ├── genetic_algorithm.py
+│   │   ├── grey_wolf_optimizer.py
+│   │   ├── artificial_bee_colony.py
+│   │   ├── honey_badger.py
+│   │   ├── shrimp_optimizer.py
+│   │   └── tianji_optimizer.py
+│   ├── visualization/         # Utilidades de visualización
+│   │   ├── convergence_plot.py
+│   │   └── comparison_plots.py
+│   └── utils/                 # Utilidades generales
+│       └── config_loader.py
+├── config/                    # Configuraciones YAML
+│   ├── default.yaml
+│   ├── quick_test.yaml
+│   └── full_comparison.yaml
+├── scripts/
+│   └── run_benchmark.py       # Script principal de benchmark
+└── notebooks/
+    └── parameter_identification_demo.ipynb
+```
+
+### Algoritmos Disponibles
+
+| Algoritmo | Clase | Referencia |
+|-----------|-------|------------|
+| **Random Search** | `RandomSearch` | Baseline algorithm |
+| **Differential Evolution** | `DifferentialEvolution` | Storn & Price (1997) |
+| **Genetic Algorithm** | `GeneticAlgorithm` | Holland (1975) |
+| **Grey Wolf Optimizer** | `GreyWolfOptimizer` | Mirjalili et al. (2014) |
+| **Artificial Bee Colony** | `ArtificialBeeColony` | Karaboga (2005) |
+| **Honey Badger Algorithm** | `HoneyBadgerAlgorithm` | Hashim et al. (2022) |
+| **Shrimp Optimizer** | `ShrimpOptimizer` | Novel algorithm |
+| **Tianji Horse Racing** | `TianjiOptimizer` | Ancient Chinese strategy |
+
+---
+
 ## 💻 Uso
 
-### Ejemplo Básico
+### Opción 1: CLI - Script de Benchmark
+
+La forma más rápida de comparar algoritmos es usar el script CLI:
+
+```bash
+# Ejecución rápida (pocos algoritmos, pocas iteraciones)
+python scripts/run_benchmark.py --config config/quick_test.yaml
+
+# Comparación completa (todos los algoritmos, muchas iteraciones)
+python scripts/run_benchmark.py --config config/full_comparison.yaml
+
+# Ejecución personalizada
+python scripts/run_benchmark.py --algorithms DE GA GWO --trials 10
+```
+
+**Salidas generadas:**
+- 📊 Gráficas de convergencia
+- 📦 Boxplots de comparación
+- ⏱️ Comparación de tiempos de ejecución
+- 📄 Estadísticas en JSON
+- 💾 Resultados crudos en NPZ
+
+### Opción 2: Python API - Uso Programático
+
+#### Ejemplo Básico
 
 ```python
 from levitador_benchmark import LevitadorBenchmark
@@ -90,6 +161,203 @@ solucion = [0.036, 0.0035, 0.005]  # [k0, k, a]
 error = problema.fitness_function(solucion)
 
 print(f"Error MSE: {error:.6e}")
+```
+
+#### Usando Algoritmos del Framework
+
+```python
+from levitador_benchmark import LevitadorBenchmark
+from src.optimization import DifferentialEvolution, GreyWolfOptimizer
+
+# Crear problema
+problema = LevitadorBenchmark(random_seed=42)
+
+# Opción 1: Differential Evolution
+de = DifferentialEvolution(
+    problema, 
+    pop_size=30, 
+    max_iter=100, 
+    F=0.8, 
+    CR=0.9,
+    random_seed=42
+)
+best_sol, best_fitness = de.optimize()
+print(f"DE - Best fitness: {best_fitness:.6e}")
+
+# Opción 2: Grey Wolf Optimizer
+gwo = GreyWolfOptimizer(
+    problema,
+    pop_size=30,
+    max_iter=100,
+    random_seed=42
+)
+best_sol, best_fitness = gwo.optimize()
+print(f"GWO - Best fitness: {best_fitness:.6e}")
+
+# Acceder al historial de convergencia
+convergence = gwo.get_convergence_curve()
+```
+
+#### Comparando Múltiples Algoritmos
+
+```python
+from src.optimization import (
+    DifferentialEvolution, GeneticAlgorithm,
+    GreyWolfOptimizer, ArtificialBeeColony
+)
+from src.visualization import plot_convergence
+
+# Configurar problema
+problema = LevitadorBenchmark(random_seed=42)
+
+# Ejecutar algoritmos
+algorithms = {
+    'DE': DifferentialEvolution(problema, pop_size=30, max_iter=50, random_seed=42),
+    'GA': GeneticAlgorithm(problema, pop_size=30, generations=50, random_seed=42),
+    'GWO': GreyWolfOptimizer(problema, pop_size=30, max_iter=50, random_seed=42),
+    'ABC': ArtificialBeeColony(problema, pop_size=30, max_iter=50, random_seed=42)
+}
+
+results = {}
+histories = {}
+
+for name, algo in algorithms.items():
+    print(f"Running {name}...")
+    best_sol, best_fit = algo.optimize()
+    results[name] = best_fit
+    histories[name] = algo.get_convergence_curve()
+    print(f"  {name}: {best_fit:.6e}")
+
+# Visualizar convergencia
+plot_convergence(histories, save_path='comparison.png')
+```
+
+#### Usando Configuraciones YAML
+
+```python
+from src.utils import load_config
+from src.optimization import ALGORITHM_REGISTRY
+
+# Cargar configuración
+config = load_config('config/default.yaml')
+
+# Obtener configuración de un algoritmo
+de_config = config['algorithms']['DifferentialEvolution']
+
+# Crear optimizador desde configuración
+problema = LevitadorBenchmark()
+optimizer = DifferentialEvolution(problema, **de_config)
+best_sol, best_fit = optimizer.optimize()
+```
+
+#### Opción 3: Demo Interactivo - Jupyter Notebook
+
+Para una experiencia interactiva con explicaciones paso a paso:
+
+```bash
+jupyter notebook notebooks/parameter_identification_demo.ipynb
+```
+
+---
+
+## ⚙️ Configuración
+
+El framework usa archivos YAML para configurar experimentos. Tres configuraciones predefinidas están disponibles:
+
+### `config/quick_test.yaml`
+Configuración rápida para pruebas y depuración:
+- 2 ensayos por algoritmo
+- Poblaciones pequeñas (15 individuos)
+- Pocas iteraciones (20)
+- Solo algoritmos principales (DE, GA, RandomSearch)
+
+### `config/default.yaml`
+Configuración balanceada para uso general:
+- 5 ensayos por algoritmo
+- Poblaciones medianas (30 individuos)
+- Iteraciones moderadas (100)
+- Todos los algoritmos habilitados
+
+### `config/full_comparison.yaml`
+Configuración completa para investigación:
+- 10 ensayos por algoritmo
+- Poblaciones grandes (50 individuos)
+- Muchas iteraciones (200)
+- Todos los algoritmos habilitados
+
+### Estructura de Configuración
+
+```yaml
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  noise_level: 1e-5
+
+optimization:
+  n_trials: 5
+  save_results: true
+  output_dir: "results"
+
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  save_plots: true
+  plot_dir: "plots"
+  dpi: 300
+```
+
+### Crear Configuración Personalizada
+
+```yaml
+# my_config.yaml
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 123
+
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 50
+    max_iter: 150
+  
+  GreyWolfOptimizer:
+    enabled: true
+    pop_size: 40
+    max_iter: 120
+```
+
+Ejecutar con configuración personalizada:
+
+```bash
+python scripts/run_benchmark.py --config my_config.yaml
+```
+
+---
+
+## 🔄 Compatibilidad Hacia Atrás
+
+El archivo original `example_optimization.py` se mantiene funcional para compatibilidad:
+
+```python
+from example_optimization import (
+    RandomSearch, DifferentialEvolution, GeneticAlgorithm,
+    GreyWolfOptimizer, ArtificialBeeColony, HoneyBadgerAlgorithm
+)
+
+# Uso idéntico al original
+problema = LevitadorBenchmark()
+algo = DifferentialEvolution(problema, pop_size=30, max_iter=100)
+best_sol, best_fit = algo.optimize()
 ```
 
 ### Con Datos Experimentales Reales

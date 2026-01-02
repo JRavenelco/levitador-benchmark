@@ -1,0 +1,85 @@
+# Full Comparison Configuration
+# ==============================
+# Comprehensive comparison with more trials and iterations
+
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  noise_level: 1e-5
+
+optimization:
+  n_trials: 10  # More trials for statistical significance
+  max_workers: 1
+  save_results: true
+  output_dir: "results/full_comparison"
+
+algorithms:
+  RandomSearch:
+    enabled: true
+    n_iterations: 3000  # More iterations
+    random_seed: 42
+    verbose: false
+  
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 50  # Larger population
+    max_iter: 200  # More iterations
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+  
+  GeneticAlgorithm:
+    enabled: true
+    pop_size: 50
+    generations: 200
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5
+    random_seed: 42
+    verbose: false
+  
+  GreyWolfOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+  
+  ArtificialBeeColony:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    limit: null
+    random_seed: 42
+    verbose: false
+  
+  HoneyBadgerAlgorithm:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    beta: 6.0
+    random_seed: 42
+    verbose: false
+  
+  ShrimpOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+  
+  TianjiOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  plot_runtime: true
+  save_plots: true
+  plot_dir: "plots/full_comparison"
+  dpi: 300

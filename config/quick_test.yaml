@@ -1,0 +1,85 @@
+# Quick Test Configuration
+# ========================
+# Reduced iterations for fast testing and debugging
+
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  noise_level: 1e-5
+
+optimization:
+  n_trials: 2  # Fewer trials for quick testing
+  max_workers: 1
+  save_results: true
+  output_dir: "results/quick_test"
+
+algorithms:
+  RandomSearch:
+    enabled: true
+    n_iterations: 100  # Reduced
+    random_seed: 42
+    verbose: true
+  
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 15  # Smaller population
+    max_iter: 20  # Fewer iterations
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: true
+  
+  GeneticAlgorithm:
+    enabled: true
+    pop_size: 15
+    generations: 20
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5
+    random_seed: 42
+    verbose: true
+  
+  GreyWolfOptimizer:
+    enabled: false  # Disabled for quick test
+    pop_size: 15
+    max_iter: 20
+    random_seed: 42
+    verbose: true
+  
+  ArtificialBeeColony:
+    enabled: false  # Disabled for quick test
+    pop_size: 15
+    max_iter: 20
+    limit: null
+    random_seed: 42
+    verbose: true
+  
+  HoneyBadgerAlgorithm:
+    enabled: false  # Disabled for quick test
+    pop_size: 15
+    max_iter: 20
+    beta: 6.0
+    random_seed: 42
+    verbose: true
+  
+  ShrimpOptimizer:
+    enabled: false  # Disabled for quick test
+    pop_size: 15
+    max_iter: 20
+    random_seed: 42
+    verbose: true
+  
+  TianjiOptimizer:
+    enabled: false  # Disabled for quick test
+    pop_size: 15
+    max_iter: 20
+    random_seed: 42
+    verbose: true
+
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  plot_runtime: true
+  save_plots: true
+  plot_dir: "plots/quick_test"
+  dpi: 150  # Lower resolution for faster plotting
