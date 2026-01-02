@@ -3,3 +3,4 @@ __pycache__/
 media/
 manim_benchmark.py
 .DS_Store
+.pytest_cache/
