@@ -73,6 +73,7 @@ class ParameterBenchmark:
         dt: float = 0.01,
         smoothing_window: int = 11,
         smoothing_polyorder: int = 3,
+        subsample_factor: int = 10,
         verbose: bool = True
     ):
         """
@@ -95,6 +96,8 @@ class ParameterBenchmark:
             Window size for Savitzky-Golay filter (odd number)
         smoothing_polyorder : int
             Polynomial order for smoothing
+        subsample_factor : int
+            Subsample data by this factor to speed up optimization (default: 10)
         verbose : bool
             Enable verbose output
         """
@@ -103,6 +106,7 @@ class ParameterBenchmark:
         self.dt = dt
         self.smoothing_window = smoothing_window
         self.smoothing_polyorder = smoothing_polyorder
+        self.subsample_factor = subsample_factor
         self.verbose = verbose
         
         # Load experimental data
@@ -151,6 +155,14 @@ class ParameterBenchmark:
         self.y_real = data[:, 1]
         self.i_real = data[:, 2]
         self.u_real = data[:, 3]
+        
+        # Subsample data for faster optimization
+        if self.subsample_factor > 1:
+            indices = np.arange(0, len(self.t_real), self.subsample_factor)
+            self.t_real = self.t_real[indices]
+            self.y_real = self.y_real[indices]
+            self.i_real = self.i_real[indices]
+            self.u_real = self.u_real[indices]
         
         # Smooth current and voltage to reduce noise in derivatives
         if len(self.i_real) > self.smoothing_window:

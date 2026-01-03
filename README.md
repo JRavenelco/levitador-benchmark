@@ -1,6 +1,6 @@
 # 🧲 Levitador Magnético Benchmark
 
-**Problema de optimización real para algoritmos bio-inspirados y metaheurísticas.**
+**Problema de optimización real para algoritmos bio-inspirados y metaheurísticas con pipeline de dos fases para identificación de parámetros y observación KAN-PINN.**
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -10,7 +10,10 @@
 
 ## 📋 Descripción
 
-Este benchmark proporciona un **problema de optimización del mundo real** basado en un sistema de levitación magnética. El objetivo es identificar los parámetros físicos de un electroimán que minimizan el error entre un modelo dinámico (gemelo digital) y datos experimentales reales.
+Este benchmark proporciona un **problema de optimización del mundo real** basado en un sistema de levitación magnética. El repositorio incluye un pipeline completo de dos fases:
+
+1. **Fase 1: Identificación de Parámetros Físicos** - Optimización con metaheurísticas para identificar parámetros del sistema (inductancia y resistencia)
+2. **Fase 2: Entrenamiento KAN-PINN** - Red neuronal informada por física (Physics-Informed) para observación sensorless de posición
 
 A diferencia de funciones de prueba sintéticas (Rosenbrock, Rastrigin, etc.), este problema:
 
@@ -18,38 +21,71 @@ A diferencia de funciones de prueba sintéticas (Rosenbrock, Rastrigin, etc.), e
 - ✅ Tiene **restricciones físicas naturales**
 - ✅ Incluye **datos experimentales** para validación
 - ✅ Es **multimodal** y presenta retos de convergencia
+- ✅ Integra **estimación de resistencia sin sensor de temperatura**
+- ✅ Permite **entrenamiento de observadores neuronales**
 
 ---
 
-## 🎯 El Problema de Optimización
+## 🎯 Pipeline de Dos Fases
 
-### Modelo Físico
+### Fase 1: Identificación de Parámetros Físicos
 
-El sistema consiste en una esfera de acero suspendida por un electroimán. La inductancia del electroimán varía con la distancia según:
+**Objetivo:** Identificar los parámetros físicos del sistema usando metaheurísticas.
 
-$$L(y) = k_0 + \frac{k}{1 + y/a}$$
+**Parámetros a optimizar:**
+- `K0`: Numerador de inductancia [H]
+- `A`: Parámetro geométrico [m]  
+- `R0`: Resistencia base [Ω]
+- `α`: Coeficiente de temperatura [1/°C]
 
-Donde:
-| Parámetro | Descripción | Unidad |
-|-----------|-------------|--------|
-| $k_0$ | Inductancia base | H |
-| $k$ | Coeficiente de inductancia | H |
-| $a$ | Parámetro geométrico | m |
-| $y$ | Posición de la esfera | m |
+**Modelo Físico:**
 
-### Objetivo
+Inductancia (función no lineal de la posición):
+```
+L(y) = K0 / (1 + y/A)
+```
 
-Encontrar $[k_0, k, a]$ que minimicen el **Error Cuadrático Medio (MSE)** entre:
-- La trayectoria simulada por el modelo
-- Los datos experimentales reales
+Resistencia (estimada sin sensor de temperatura):
+```
+R(t) ≈ R0 * (1 + α*ΔT(t))
+```
 
-### Espacio de Búsqueda
+Donde ΔT(t) se aproxima mediante calentamiento Joule: ΔT ∝ ∫ i²(t) dt
 
-| Variable | Límite Inferior | Límite Superior |
-|----------|-----------------|-----------------|
-| $k_0$ | 0.0001 | 0.1 |
-| $k$ | 0.0001 | 0.1 |
-| $a$ | 0.0001 | 0.05 |
+**Ecuaciones del sistema:**
+- Mecánica: `m·ÿ = (1/2)·(∂L/∂y)·i² + m·g`
+- Eléctrica: `L(y)·(di/dt) + (∂L/∂y)·ẏ·i + R(t)·i = u`
+
+**Estimación de R(t) vía Ley de Kirchhoff:**
+
+Sin sensor de temperatura, la resistencia se estima usando:
+```
+R_est(t) = (u(t) - dφ̂(t)/dt) / i(t)
+```
+
+donde `φ̂(t) = L(y(t)) · i(t)` es el flujo magnético estimado.
+
+### Fase 2: Entrenamiento KAN-PINN (Observador Sensorless)
+
+**Objetivo:** Entrenar una red neuronal KAN (Kolmogorov-Arnold Network) informada por física para estimar la posición sin sensor directo.
+
+**Arquitectura de dos etapas:**
+
+1. **Etapa 1 - Observador de Flujo:**
+   - Entrada: (u, i)
+   - Salida: φ̂ (flujo estimado)
+   - Pérdida: MSE + Kirchhoff (u = R·i + dφ/dt)
+
+2. **Etapa 2 - Predictor de Posición:**
+   - Entrada: (u, i, φ̂)
+   - Salida: ŷ (posición estimada)
+   - Pérdida: MSE + PINN (φ̂ = L*(ŷ)·i) usando K0*, A* de Fase 1
+
+**Características clave:**
+- Usa capa HiPPO-LegS para captura temporal
+- KAN con B-splines y conexiones residuales
+- Curriculum learning para peso PINN
+- Sin data leakage entre etapas
 
 ---
 
@@ -57,10 +93,10 @@ Encontrar $[k_0, k, a]$ que minimicen el **Error Cuadrático Medio (MSE)** entre
 
 ### Requisitos
 - Python 3.8+
-- NumPy
-- SciPy
-- Pandas (para cargar datos)
-- Matplotlib (opcional, para visualización)
+- NumPy, SciPy, Pandas
+- Matplotlib (visualización)
+- PyYAML (configuración)
+- PyTorch >= 1.12 (opcional, solo para KAN-PINN)
 
 ### Instalación rápida
 
@@ -69,21 +105,34 @@ Encontrar $[k_0, k, a]$ que minimicen el **Error Cuadrático Medio (MSE)** entre
 git clone https://github.com/JRavenelco/levitador-benchmark.git
 cd levitador-benchmark
 
-# Instalar dependencias
-pip install numpy scipy pandas matplotlib
+# Instalar dependencias básicas
+pip install numpy scipy pandas matplotlib pyyaml
+
+# Para KAN-PINN (Fase 2), instalar PyTorch:
+pip install torch
 ```
 
 ---
 
 ## 🏗️ Arquitectura Modular
 
-El repositorio incluye un framework modular completo para ejecutar y comparar múltiples algoritmos de optimización:
+El repositorio incluye un framework modular completo para el pipeline de dos fases:
 
 ```
 levitador-benchmark/
 ├── src/
-│   ├── optimization/          # Algoritmos de optimización
-│   │   ├── base_optimizer.py  # Clase base abstracta
+│   ├── benchmarks/             # Benchmarks de optimización
+│   │   ├── parameter_benchmark.py   # Fase 1: Identificación de parámetros
+│   │   └── kanpinn_benchmark.py     # Fase 2: Hyperparams KAN-PINN
+│   ├── kan_pinn/               # Módulo KAN-PINN (requiere PyTorch)
+│   │   ├── hippo_layer.py      # Capa HiPPO-LegS
+│   │   ├── kan_layer.py        # Capa KAN con B-splines
+│   │   ├── flux_observer.py    # Etapa 1: Observador de flujo
+│   │   ├── position_predictor.py  # Etapa 2: Predictor de posición
+│   │   ├── physics_loss.py     # Pérdidas físicas
+│   │   └── trainer.py          # Entrenador con curriculum learning
+│   ├── optimization/           # Algoritmos de optimización
+│   │   ├── base_optimizer.py   # Clase base abstracta
 │   │   ├── random_search.py
 │   │   ├── differential_evolution.py
 │   │   ├── genetic_algorithm.py
@@ -92,12 +141,30 @@ levitador-benchmark/
 │   │   ├── honey_badger.py
 │   │   ├── shrimp_optimizer.py
 │   │   └── tianji_optimizer.py
-│   ├── visualization/         # Utilidades de visualización
+│   ├── visualization/          # Utilidades de visualización
 │   │   ├── convergence_plot.py
 │   │   └── comparison_plots.py
-│   └── utils/                 # Utilidades generales
+│   └── utils/                  # Utilidades generales
 │       └── config_loader.py
-├── config/                    # Configuraciones YAML
+├── config/                     # Configuraciones YAML
+│   ├── pipeline_config.yaml    # Pipeline completo (Fase 1 + 2)
+│   ├── kanpinn_default.yaml    # Config KAN-PINN
+│   ├── default.yaml            # Config optimización estándar
+│   ├── quick_test.yaml
+│   └── full_comparison.yaml
+├── scripts/
+│   ├── optimize_parameters.py  # Script Fase 1
+│   ├── train_kanpinn.py        # Script Fase 2
+│   ├── pipeline_identificacion_kanpinn.py  # Orquestador completo
+│   └── run_benchmark.py        # Benchmark original
+├── data/
+│   ├── datos_levitador.txt     # Datos experimentales
+│   └── sesiones_kan_pinn/      # Datasets para KAN-PINN
+└── notebooks/
+    └── KAN_SENSORLESS_REAL.ipynb  # Demo KAN-PINN
+```
+
+### Algoritmos Disponibles
 │   ├── default.yaml
 │   ├── quick_test.yaml
 │   └── full_comparison.yaml
@@ -120,9 +187,126 @@ levitador-benchmark/
 | **Shrimp Optimizer** | `ShrimpOptimizer` | Novel algorithm |
 | **Tianji Horse Racing** | `TianjiOptimizer` | Ancient Chinese strategy |
 
+
 ---
 
-## 💻 Uso
+## 💻 Uso del Pipeline
+
+### Pipeline Completo: Fase 1 + Fase 2
+
+```bash
+# Ejecutar pipeline completo (identificación + entrenamiento)
+python scripts/pipeline_identificacion_kanpinn.py --config config/pipeline_config.yaml
+
+# Solo Fase 1 (identificación de parámetros)
+python scripts/pipeline_identificacion_kanpinn.py --phase1-only
+
+# Solo Fase 2 (entrenamiento KAN-PINN con parámetros existentes)
+python scripts/pipeline_identificacion_kanpinn.py --phase2-only \
+    --use-params results/parameter_identification/parametros_optimos.json
+```
+
+### Fase 1: Identificación de Parámetros
+
+```bash
+# Ejecución con configuración completa
+python scripts/optimize_parameters.py --config config/pipeline_config.yaml
+
+# Ejecución rápida con algoritmos específicos
+python scripts/optimize_parameters.py --algorithms DE GWO ABC --trials 10
+
+# Ejecución personalizada
+python scripts/optimize_parameters.py \
+    --data data/datos_levitador.txt \
+    --algorithms DE GWO HBA SOA Tianji GA RandomSearch \
+    --trials 5 \
+    --output results/my_optimization
+```
+
+**Salidas generadas:**
+- 📄 `parametros_optimos.json` - Parámetros óptimos [K0, A, R0, α]
+- 📄 `optimization_results.json` - Estadísticas de todos los algoritmos
+- 📊 `convergence_*.png` - Curvas de convergencia por algoritmo
+- 📊 `comparison_boxplot.png` - Comparación de rendimiento
+- 📊 `best_solution.png` - Visualización de la mejor solución
+
+### Fase 2: Entrenamiento KAN-PINN
+
+```bash
+# Entrenar con configuración por defecto
+python scripts/train_kanpinn.py --config config/kanpinn_default.yaml
+
+# Usar parámetros de Fase 1
+python scripts/train_kanpinn.py \
+    --config config/kanpinn_default.yaml \
+    --use-params results/parameter_identification/parametros_optimos.json
+
+# Entrenar solo una etapa
+python scripts/train_kanpinn.py --stage 1  # Solo observador de flujo
+python scripts/train_kanpinn.py --stage 2  # Solo predictor de posición
+```
+
+**Nota:** Fase 2 requiere PyTorch. La implementación completa está basada en el notebook `KAN_SENSORLESS_REAL.ipynb`.
+
+### Python API - Fase 1
+
+```python
+from src.benchmarks import ParameterBenchmark
+from src.optimization import DifferentialEvolution, GreyWolfOptimizer
+
+# Crear problema de identificación de parámetros
+problema = ParameterBenchmark(
+    data_path='data/datos_levitador.txt',
+    subsample_factor=20,  # Submuestreo para velocidad
+    verbose=True
+)
+
+print(f"Optimizing {problema.dim} parameters: {problema.variable_names}")
+print(f"Bounds: {problema.bounds}")
+
+# Usar Differential Evolution
+de = DifferentialEvolution(
+    problema,
+    pop_size=30,
+    max_iter=100,
+    F=0.8,
+    CR=0.9,
+    random_seed=42
+)
+
+best_sol, best_fitness = de.optimize()
+print(f"Best parameters: K0={best_sol[0]:.6f}, A={best_sol[1]:.6f}, "
+      f"R0={best_sol[2]:.4f}, α={best_sol[3]:.6f}")
+print(f"Best fitness: {best_fitness:.6e}")
+
+# Visualizar solución
+problema.visualize_solution(best_sol, save_path='results/solution.png')
+
+# Estimar curva de resistencia
+R_curve = problema.estimate_resistance_curve(best_sol[0], best_sol[1])
+print(f"R(t) range: [{R_curve.min():.3f}, {R_curve.max():.3f}] Ω")
+```
+
+### Python API - Compatibilidad con Benchmark Original
+
+El benchmark original (`LevitadorBenchmark`) sigue funcionando para problemas simples:
+
+```python
+from levitador_benchmark import LevitadorBenchmark
+
+# Problema original (3 parámetros: k0, k, a)
+problema = LevitadorBenchmark()
+
+# Evaluar una solución candidata
+solucion = [0.036, 0.0035, 0.005]  # [k0, k, a]
+error = problema.fitness_function(solucion)
+
+print(f"Error MSE: {error:.6e}")
+```
+
+---
+
+## 💻 Uso del Benchmark Original (3 parámetros)
 
 ### Opción 1: CLI - Script de Benchmark
 
@@ -701,3 +885,136 @@ Los parámetros $[k_0, k, a]$ identificados por metaheurísticos pueden usarse p
 
 ---
 
+
+---
+
+## 🗺️ Mapa Mental: Arquitectura del Pipeline
+
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  LEVITADOR MAGNÉTICO - PIPELINE DE DOS FASES               ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ENTRADA: Datos Experimentales (t, y, i, u)                                │
+│  ▪ datos_levitador.txt (identificación parámetros)                         │
+│  ▪ sesiones_kan_pinn/*.txt (entrenamiento KAN-PINN)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                       FASE 1: IDENTIFICACIÓN DE PARÁMETROS                ┃
+┃                                                                            ┃
+┃  Objetivo: Identificar θ = [K0, A, R0, α]                                 ┃
+┃                                                                            ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐ ┃
+┃  │  MODELOS FÍSICOS                                                     │ ┃
+┃  │                                                                      │ ┃
+┃  │  ▪ Inductancia:  L(y) = K0 / (1 + y/A)                              │ ┃
+┃  │                  ∂L/∂y = -K0 / (A·(1 + y/A)²)                       │ ┃
+┃  │                                                                      │ ┃
+┃  │  ▪ Resistencia (sin sensor de temperatura):                         │ ┃
+┃  │                  R(t) ≈ R0·(1 + α·ΔT(t))                            │ ┃
+┃  │                  ΔT(t) ∝ ∫ i²(t) dt (Joule heating)                 │ ┃
+┃  │                                                                      │ ┃
+┃  │  ▪ Estimación vía Kirchhoff:                                        │ ┃
+┃  │                  R_est(t) = (u(t) - dφ̂/dt) / i(t)                   │ ┃
+┃  │                  donde φ̂ = L(y)·i                                   │ ┃
+┃  └──────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                            ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐ ┃
+┃  │  ECUACIONES DINÁMICAS                                                │ ┃
+┃  │                                                                      │ ┃
+┃  │  ▪ Mecánica:    m·ÿ = (1/2)·(∂L/∂y)·i² + m·g                        │ ┃
+┃  │  ▪ Eléctrica:   L(y)·(di/dt) + (∂L/∂y)·ẏ·i + R(t)·i = u            │ ┃
+┃  └──────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                            ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐ ┃
+┃  │  METAHEURÍSTICOS (ParameterBenchmark)                               │ ┃
+┃  │                                                                      │ ┃
+┃  │  ▪ Differential Evolution (DE)     ▪ Honey Badger (HBA)            │ ┃
+┃  │  ▪ Grey Wolf Optimizer (GWO)       ▪ Shrimp Optimizer (SOA)        │ ┃
+┃  │  ▪ Artificial Bee Colony (ABC)     ▪ Tianji Optimizer              │ ┃
+┃  │  ▪ Genetic Algorithm (GA)          ▪ Random Search                 │ ┃
+┃  │                                                                      │ ┃
+┃  │  Fitness: MSE(y_simulada(θ), y_real)                                │ ┃
+┃  └──────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                            ┃
+┃  SALIDA: parametros_optimos.json → [K0*, A*, R0*, α*]                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                     │
+                                     ▼
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                   FASE 2: ENTRENAMIENTO KAN-PINN (Sensorless)             ┃
+┃                                                                            ┃
+┃  Objetivo: Entrenar observador neuronal para estimar posición sin sensor  ┃
+┃                                                                            ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐ ┃
+┃  │  ETAPA 1: OBSERVADOR DE FLUJO (FluxObserver)                        │ ┃
+┃  │                                                                      │ ┃
+┃  │    Entrada: (u, i)                                                  │ ┃
+┃  │              │                                                       │ ┃
+┃  │              ▼                                                       │ ┃
+┃  │         ┌─────────┐                                                 │ ┃
+┃  │         │ HiPPO-8 │  (captura temporal online)                      │ ┃
+┃  │         └────┬────┘                                                 │ ┃
+┃  │              │                                                       │ ┃
+┃  │              ▼                                                       │ ┃
+┃  │         ┌─────────┐                                                 │ ┃
+┃  │         │  KAN    │  (B-splines + residual)                        │ ┃
+┃  │         │ 3 → 32  │                                                 │ ┃
+┃  │         └────┬────┘                                                 │ ┃
+┃  │              │                                                       │ ┃
+┃  │              ▼                                                       │ ┃
+┃  │    Salida: φ̂ (flujo estimado)                                      │ ┃
+┃  │                                                                      │ ┃
+┃  │    Pérdida: L = w_data·MSE(φ̂, φ) + w_kirch·|u - R·i - dφ̂/dt|²     │ ┃
+┃  └──────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                            ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐ ┃
+┃  │  ETAPA 2: PREDICTOR DE POSICIÓN (PositionPredictor)                │ ┃
+┃  │                                                                      │ ┃
+┃  │    Entrada: (u, i, φ̂)  ← flujo de Etapa 1                          │ ┃
+┃  │              │                                                       │ ┃
+┃  │              ▼                                                       │ ┃
+┃  │         ┌─────────┐                                                 │ ┃
+┃  │         │  KAN    │  (sin HiPPO, usa φ̂ directamente)               │ ┃
+┃  │         │ 3 → 32  │                                                 │ ┃
+┃  │         │  → 32   │                                                 │ ┃
+┃  │         │  → 1    │                                                 │ ┃
+┃  │         └────┬────┘                                                 │ ┃
+┃  │              │                                                       │ ┃
+┃  │              ▼                                                       │ ┃
+┃  │    Salida: ŷ (posición estimada)                                   │ ┃
+┃  │                                                                      │ ┃
+┃  │    Pérdida PINN (usando K0*, A* de Fase 1):                        │ ┃
+┃  │         L = w_data·MSE(ŷ, y) + w_pinn·|φ̂ - L*(ŷ)·i|²               │ ┃
+┃  │                                                                      │ ┃
+┃  │    Curriculum Learning: w_pinn va de 0.1 → 5.0                     │ ┃
+┃  └──────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                            ┃
+┃  SALIDA: Modelos entrenados (.pt) + predicciones + métricas               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RESULTADO FINAL:                                                           │
+│  ▪ Parámetros físicos identificados: [K0*, A*, R0*, α*]                    │
+│  ▪ Observador de posición sensorless entrenado                             │
+│  ▪ Estimación de R(t) sin sensor de temperatura                            │
+│  ▪ Visualizaciones y métricas de convergencia                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CARACTERÍSTICAS CLAVE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+▪ NO hay sensor de temperatura → R(t) se estima vía Kirchhoff
+▪ NO hay data leakage → Etapa 2 usa φ̂ de Etapa 1 (no y_sensor)
+▪ Restricciones físicas garantizadas: K0 > 0, A > 0, R0 > 0
+▪ Submuestreo configurable para optimización rápida
+▪ Pérdidas físicas: Kirchhoff (Etapa 1) + PINN Euler-Lagrange (Etapa 2)
+▪ 8 algoritmos metaheurísticos disponibles
+▪ Framework modular y extensible
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---

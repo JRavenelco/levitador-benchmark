@@ -136,18 +136,39 @@ def run_optimization(
         if config_dict and 'algorithms' in config_dict and algo_name in config_dict['algorithms']:
             algo_config = config_dict['algorithms'][algo_name].copy()
         else:
-            # Default configuration
-            algo_config = {
-                'pop_size': 30,
-                'max_iter': 100,
-                'random_seed': 42,
-                'verbose': False
-            }
-            if algo_name in ['DifferentialEvolution', 'DE']:
-                algo_config.update({'F': 0.8, 'CR': 0.9})
+            # Default configuration based on algorithm type
+            if algo_name in ['RandomSearch']:
+                algo_config = {
+                    'n_iterations': 1000,
+                    'random_seed': 42,
+                    'verbose': False
+                }
             elif algo_name in ['GeneticAlgorithm', 'GA']:
-                algo_config['generations'] = algo_config.pop('max_iter')
-                algo_config.update({'crossover_prob': 0.8, 'mutation_prob': 0.2})
+                algo_config = {
+                    'pop_size': 30,
+                    'generations': 100,
+                    'crossover_prob': 0.8,
+                    'mutation_prob': 0.2,
+                    'random_seed': 42,
+                    'verbose': False
+                }
+            elif algo_name in ['DifferentialEvolution', 'DE']:
+                algo_config = {
+                    'pop_size': 30,
+                    'max_iter': 100,
+                    'F': 0.8,
+                    'CR': 0.9,
+                    'random_seed': 42,
+                    'verbose': False
+                }
+            else:
+                # Generic population-based algorithm
+                algo_config = {
+                    'pop_size': 30,
+                    'max_iter': 100,
+                    'random_seed': 42,
+                    'verbose': False
+                }
         
         # Remove 'enabled' key if present
         algo_config.pop('enabled', None)
