@@ -1,0 +1,164 @@
+# KAN-PINN Default Configuration
+# ===============================
+# Default hyperparameters for KAN-PINN training
+
+# Physical parameters (to be loaded from optimization results)
+physics:
+  K0: null  # Will be loaded from parametros_optimos.json
+  A: null   # Will be loaded from parametros_optimos.json
+  R0: null  # Will be loaded from parametros_optimos.json
+  alpha: null  # Will be loaded from parametros_optimos.json
+  
+  # Fixed physical constants
+  m: 0.018  # Mass [kg]
+  g: 9.81   # Gravity [m/s²]
+  R: 2.72   # Nominal resistance [Ω] (for reference)
+
+# Model architecture
+model:
+  # HiPPO layer
+  hippo_n: 8
+  hippo_dt: 0.01
+  
+  # KAN layer
+  grid_size: 10
+  spline_order: 3
+  
+  # Network dimensions
+  hidden_dim: 32
+  n_layers: 3
+  
+  # Sequence length for temporal processing
+  seq_len: 32
+
+# Data preprocessing
+data:
+  # Normalization
+  normalize: true
+  norm_type: "standard"  # "standard" or "minmax"
+  
+  # Train/val/test split
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Data augmentation
+  augmentation:
+    enabled: false
+    noise_std: 0.001
+    time_shift: 2
+
+# Stage 1: Flux Observer Training
+stage1:
+  # Training parameters
+  epochs: 100
+  batch_size: 512
+  learning_rate: 0.001
+  weight_decay: 1e-5
+  
+  # Loss weights
+  w_data: 1.0      # MSE(φ_pred, φ_target)
+  w_kirch: 10.0    # Kirchhoff: |u - R·i - dφ/dt|²
+  
+  # Optimizer
+  optimizer: "adam"
+  betas: [0.9, 0.999]
+  
+  # Learning rate scheduler
+  scheduler: "cosine"
+  min_lr: 1e-6
+  warmup_epochs: 10
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 15
+    min_delta: 1e-6
+  
+  # Checkpointing
+  save_best: true
+  save_every: 10
+
+# Stage 2: Position Predictor Training
+stage2:
+  # Training parameters
+  epochs: 150
+  batch_size: 512
+  learning_rate: 0.0005
+  weight_decay: 1e-5
+  
+  # Loss weights
+  w_data: 1.0       # MSE(y_pred, y_target)
+  w_pinn: 5.0       # PINN: |φ̂ - L(ŷ)·i|²
+  
+  # Optimizer
+  optimizer: "adam"
+  betas: [0.9, 0.999]
+  
+  # Learning rate scheduler
+  scheduler: "cosine"
+  min_lr: 1e-6
+  warmup_epochs: 15
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 20
+    min_delta: 1e-6
+  
+  # Curriculum learning for PINN loss
+  curriculum:
+    enabled: true
+    start_w_pinn: 0.1
+    end_w_pinn: 5.0
+    warmup_epochs: 30
+  
+  # Checkpointing
+  save_best: true
+  save_every: 10
+
+# Validation
+validation:
+  # Frequency (in epochs)
+  val_every: 1
+  
+  # Metrics to compute
+  metrics:
+    - "mse"
+    - "mae"
+    - "rmse"
+    - "correlation"
+  
+  # Save predictions
+  save_predictions: true
+
+# Logging
+logging:
+  # Console output
+  verbose: true
+  log_every: 10  # Log every N batches
+  
+  # TensorBoard
+  tensorboard: false
+  log_dir: "runs"
+  
+  # Wandb
+  wandb: false
+  project: "levitador-kanpinn"
+  entity: null
+
+# Random seed
+random_seed: 42
+
+# Device
+device: "cuda"  # "cuda" or "cpu"
+
+# Reproducibility
+deterministic: true
+benchmark: false

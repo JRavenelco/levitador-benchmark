@@ -1,0 +1,190 @@
+# Pipeline Configuration
+# ======================
+# Complete configuration for two-phase pipeline:
+# Phase 1: Parameter identification
+# Phase 2: KAN-PINN training
+
+# Phase 1: Parameter Identification
+optimization:
+  # Data source
+  data_path: "data/datos_levitador.txt"
+  
+  # Optimization settings
+  n_trials: 5
+  output_dir: "results/parameter_identification"
+  
+  # Algorithms to run
+  algorithms:
+    - DE
+    - GWO
+    - ABC
+    - HBA
+    - SOA
+    - Tianji
+    - GA
+    - RandomSearch
+  
+  # Random seed for reproducibility
+  random_seed: 42
+
+# Algorithm-specific configurations for Phase 1
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+  
+  GreyWolfOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+  
+  ArtificialBeeColony:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    limit: null
+    random_seed: 42
+    verbose: false
+  
+  HoneyBadgerAlgorithm:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    beta: 6.0
+    random_seed: 42
+    verbose: false
+  
+  ShrimpOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+  
+  TianjiOptimizer:
+    enabled: true
+    pop_size: 30
+    max_iter: 100
+    random_seed: 42
+    verbose: false
+  
+  GeneticAlgorithm:
+    enabled: true
+    pop_size: 30
+    generations: 100
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5
+    random_seed: 42
+    verbose: false
+  
+  RandomSearch:
+    enabled: true
+    n_iterations: 3000
+    random_seed: 42
+    verbose: false
+
+# Phase 2: KAN-PINN Training
+kanpinn:
+  # Input: optimal parameters from Phase 1
+  parameters_file: "results/parameter_identification/parametros_optimos.json"
+  
+  # Data sources for training
+  data:
+    train_paths:
+      - "data/sesiones_kan_pinn/dataset_constante_20251217_205611.txt"
+      - "data/sesiones_kan_pinn/dataset_escalon_20251217_205858.txt"
+      - "data/sesiones_kan_pinn/dataset_senoidal_20251217_205952.txt"
+    val_paths:
+      - "data/sesiones_kan_pinn/dataset_chirp_20251217_210058.txt"
+    test_paths:
+      - "data/sesiones_kan_pinn/dataset_multiescalon_20251217_210203.txt"
+  
+  # Output directory
+  output_dir: "results/kanpinn_training"
+  
+  # Model architecture
+  architecture:
+    # HiPPO configuration
+    hippo_n: 8
+    
+    # KAN layer configuration
+    grid_size: 10
+    hidden_dim: 32
+    n_layers: 3
+    
+    # Sequence parameters
+    seq_len: 32
+  
+  # Training parameters
+  training:
+    # Stage 1: Flux Observer
+    stage1:
+      epochs: 100
+      batch_size: 512
+      learning_rate: 0.001
+      weight_decay: 1e-5
+      
+      # Loss weights
+      w_data: 1.0      # MSE weight
+      w_kirch: 10.0    # Kirchhoff law weight
+      
+      # Scheduler
+      scheduler: "cosine"
+      min_lr: 1e-6
+      
+      # Gradient clipping
+      clip_grad_norm: 1.0
+      
+      # Early stopping
+      patience: 15
+    
+    # Stage 2: Position Predictor
+    stage2:
+      epochs: 150
+      batch_size: 512
+      learning_rate: 0.0005
+      weight_decay: 1e-5
+      
+      # Loss weights
+      w_data: 1.0       # MSE weight
+      w_pinn: 5.0       # PINN loss weight (φ = L(y)·i)
+      
+      # Scheduler
+      scheduler: "cosine"
+      min_lr: 1e-6
+      
+      # Gradient clipping
+      clip_grad_norm: 1.0
+      
+      # Early stopping
+      patience: 20
+      
+      # Curriculum learning
+      curriculum:
+        enabled: true
+        start_w_pinn: 0.1
+        end_w_pinn: 5.0
+        warmup_epochs: 30
+  
+  # Random seed
+  random_seed: 42
+  
+  # Device
+  device: "cuda"  # or "cpu"
+
+# Visualization settings
+visualization:
+  enabled: true
+  plot_convergence: true
+  plot_losses: true
+  plot_predictions: true
+  save_plots: true
+  dpi: 300
