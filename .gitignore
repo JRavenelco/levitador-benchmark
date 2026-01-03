@@ -1,5 +1,8 @@
 __pycache__/
 *.pyc
+*.py[cod]
+*$py.class
+*.so
 media/
 manim_benchmark.py
 .DS_Store
@@ -10,7 +13,20 @@ de_result.png
 # Build and results directories
 results/
 plots/
+runs/
 *.npz
+*.pt
+*.pth
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
