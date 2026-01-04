@@ -49,7 +49,11 @@ def load_data(data_path: str, subsample: int = 10):
         raise FileNotFoundError(f"Data file not found: {data_path}")
     
     print(f"Loading data from {data_path}...")
-    data = np.loadtxt(data_path)
+    try:
+        data = np.loadtxt(data_path)
+    except ValueError:
+        print("   Header detected, skipping first row...")
+        data = np.loadtxt(data_path, skiprows=1)
     
     # Subsample for faster computation (GPU handles large batches, but ODE is sequential)
     data = data[::subsample]
