@@ -69,7 +69,9 @@ def simulate_single(params: jnp.ndarray,
                     i0: float,
                     m: float,
                     g: float,
-                    internal_steps: int) -> tuple[jnp.ndarray, jnp.ndarray]:
+                    internal_steps: int,
+                    yddot_weight: float,
+                    didt_weight: float) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Simulate the levitator dynamics for a single parameter set.
     
@@ -120,7 +122,8 @@ def simulate_single(params: jnp.ndarray,
 
         dt_sub = dt / internal_steps
 
-        def substep(k, st):
+        def substep(k, carry):
+            st, cost = carry
             y_s, ydot_s, i_s = st[0], st[1], st[2]
 
             y_s = jnp.clip(y_s, 1e-6, 0.05)
@@ -135,19 +138,22 @@ def simulate_single(params: jnp.ndarray,
             )
             di_dt_s = jnp.clip(di_dt_s, -500.0, 500.0)
 
+            cost = cost + (yddot_weight * (y_ddot_s ** 2) + didt_weight * (di_dt_s ** 2)) * dt_sub
+
             y_next = y_s + ydot_s * dt_sub
             ydot_next = jnp.clip(ydot_s + y_ddot_s * dt_sub, -10.0, 10.0)
             i_next = jnp.clip(i_s + di_dt_s * dt_sub, -3.0, 3.0)
-            return jnp.array([y_next, ydot_next, i_next])
+            return (jnp.array([y_next, ydot_next, i_next]), cost)
 
-        new_state = jax.lax.cond(
+        init_carry = (state, 0.0)
+        new_state, cost_step = jax.lax.cond(
             dt <= 0.0,
-            lambda _: state,
-            lambda _: jax.lax.fori_loop(0, internal_steps, substep, state),
+            lambda _: init_carry,
+            lambda _: jax.lax.fori_loop(0, internal_steps, substep, init_carry),
             operand=None,
         )
 
-        out = jnp.array([new_state[0], new_state[2]])
+        out = jnp.array([new_state[0], new_state[2], cost_step])
         return new_state, out
 
     inputs = jnp.stack([u_data, dt_steps, t_rise], axis=1)
@@ -155,7 +161,8 @@ def simulate_single(params: jnp.ndarray,
 
     y_traj = out_traj[:, 0]
     i_traj = out_traj[:, 1]
-    return y_traj, i_traj
+    cost_traj = out_traj[:, 2]
+    return y_traj, i_traj, cost_traj
 
 
 @jit
@@ -171,13 +178,28 @@ def fitness_single(params: jnp.ndarray,
                    t_rise: jnp.ndarray,
                    internal_steps: int,
                    i_soft_limit: float,
-                   i_penalty_weight: float) -> float:
+                   i_penalty_weight: float,
+                   action_weight: float,
+                   yddot_weight: float,
+                   didt_weight: float) -> float:
     """
     Compute fitness (MSE) for a single parameter set.
     Lower is better.
     """
     i0 = i_data[0]
-    y_sim, i_sim = simulate_single(params, u_data, dt_steps, t_rise, y0, i0, m, g, internal_steps)
+    y_sim, i_sim, cost_traj = simulate_single(
+        params,
+        u_data,
+        dt_steps,
+        t_rise,
+        y0,
+        i0,
+        m,
+        g,
+        internal_steps,
+        yddot_weight,
+        didt_weight,
+    )
 
     mse_y = jnp.mean((y_sim - y_real) ** 2)
     mse_i = jnp.mean((i_sim - i_data) ** 2)
@@ -186,8 +208,10 @@ def fitness_single(params: jnp.ndarray,
     over_i = jnp.maximum(jnp.abs(i_sim) - i_soft_limit, 0.0)
     penalty_i = i_penalty_weight * jnp.mean(over_i ** 2)
 
+    action_penalty = action_weight * jnp.mean(cost_traj)
+
     bad = jnp.any(jnp.isnan(y_sim)) | jnp.any(jnp.isnan(i_sim))
-    return jnp.where(bad, 1e10, mse_total + penalty_i)
+    return jnp.where(bad, 1e10, mse_total + penalty_i + action_penalty)
 
 
 def create_vectorized_fitness(t_data: jnp.ndarray,
@@ -200,7 +224,10 @@ def create_vectorized_fitness(t_data: jnp.ndarray,
                                dt: float = 0.01,
                                internal_steps: int = 10,
                                i_soft_limit: float = 2.0,
-                               i_penalty_weight: float = 10.0):
+                               i_penalty_weight: float = 10.0,
+                               action_weight: float = 0.0,
+                               yddot_weight: float = 1.0,
+                               didt_weight: float = 1e-4):
     """
     Create a vectorized fitness function that evaluates the ENTIRE population
     in a single GPU call using vmap.
@@ -237,6 +264,9 @@ def create_vectorized_fitness(t_data: jnp.ndarray,
             internal_steps,
             i_soft_limit,
             i_penalty_weight,
+            action_weight,
+            yddot_weight,
+            didt_weight,
         )
     
     # MAGIC: vmap automatically parallelizes over the population dimension!

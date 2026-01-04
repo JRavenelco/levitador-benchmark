@@ -104,7 +104,20 @@ def run_benchmark(args):
     print("\n📊 Creating vectorized fitness function...")
     t0 = time.time()
     fitness_fn = create_vectorized_fitness(
-        t_data, u_data, i_data, y_data, y0, m, g, dt
+        t_data,
+        u_data,
+        i_data,
+        y_data,
+        y0,
+        m,
+        g,
+        dt,
+        internal_steps=args.internal_steps,
+        i_soft_limit=args.i_soft_limit,
+        i_penalty_weight=args.i_penalty_weight,
+        action_weight=args.action_weight,
+        yddot_weight=args.yddot_weight,
+        didt_weight=args.didt_weight,
     )
     
     # Warmup JIT compilation
@@ -255,6 +268,19 @@ def main():
                         help='Random seed')
     parser.add_argument('--output', type=str, default='results/jax_benchmark',
                         help='Output directory for results')
+
+    parser.add_argument('--internal_steps', type=int, default=10,
+                        help='Internal integration substeps per sample (stability for electrical dynamics)')
+    parser.add_argument('--i_soft_limit', type=float, default=2.0,
+                        help='Soft current limit [A] for penalty term')
+    parser.add_argument('--i_penalty_weight', type=float, default=10.0,
+                        help='Weight for soft current limit penalty')
+    parser.add_argument('--action_weight', type=float, default=0.0,
+                        help='Weight for minimum-action regularization (0 disables)')
+    parser.add_argument('--yddot_weight', type=float, default=1.0,
+                        help='Relative weight for y_ddot^2 inside action regularizer')
+    parser.add_argument('--didt_weight', type=float, default=1e-4,
+                        help='Relative weight for di/dt^2 inside action regularizer')
     
     args = parser.parse_args()
     run_benchmark(args)
