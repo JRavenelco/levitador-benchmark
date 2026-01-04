@@ -68,7 +68,8 @@ def simulate_single(params: jnp.ndarray,
                     y0: float,
                     i0: float,
                     m: float,
-                    g: float) -> tuple[jnp.ndarray, jnp.ndarray]:
+                    g: float,
+                    internal_steps: int) -> tuple[jnp.ndarray, jnp.ndarray]:
     """
     Simulate the levitator dynamics for a single parameter set.
     
@@ -117,20 +118,36 @@ def simulate_single(params: jnp.ndarray,
         R_t = R0 * (1.0 + alpha * Tr)
         R_t = jnp.clip(R_t, 0.5, 30.0)
 
-        y_ddot = (0.5 / m) * dL_dy_val * i ** 2 + g
+        dt_sub = dt / internal_steps
 
-        di_dt = jnp.where(
-            L > 1e-9,
-            (u - dL_dy_val * y_dot * i - R_t * i) / L,
-            0.0,
+        def substep(k, st):
+            y_s, ydot_s, i_s = st[0], st[1], st[2]
+
+            y_s = jnp.clip(y_s, 1e-6, 0.05)
+            L_s = K0 / (1.0 + y_s / A)
+            dLdy_s = -K0 / (A * (1.0 + y_s / A) ** 2)
+
+            y_ddot_s = (0.5 / m) * dLdy_s * i_s ** 2 + g
+            di_dt_s = jnp.where(
+                L_s > 1e-9,
+                (u - dLdy_s * ydot_s * i_s - R_t * i_s) / L_s,
+                0.0,
+            )
+            di_dt_s = jnp.clip(di_dt_s, -500.0, 500.0)
+
+            y_next = y_s + ydot_s * dt_sub
+            ydot_next = jnp.clip(ydot_s + y_ddot_s * dt_sub, -10.0, 10.0)
+            i_next = jnp.clip(i_s + di_dt_s * dt_sub, -3.0, 3.0)
+            return jnp.array([y_next, ydot_next, i_next])
+
+        new_state = jax.lax.cond(
+            dt <= 0.0,
+            lambda _: state,
+            lambda _: jax.lax.fori_loop(0, internal_steps, substep, state),
+            operand=None,
         )
 
-        y_new = y + y_dot * dt
-        y_dot_new = jnp.clip(y_dot + y_ddot * dt, -10.0, 10.0)
-        i_new = jnp.clip(i + di_dt * dt, -5.0, 5.0)
-
-        new_state = jnp.array([y_new, y_dot_new, i_new])
-        out = jnp.array([y_new, i_new])
+        out = jnp.array([new_state[0], new_state[2]])
         return new_state, out
 
     inputs = jnp.stack([u_data, dt_steps, t_rise], axis=1)
@@ -151,20 +168,26 @@ def fitness_single(params: jnp.ndarray,
                    m: float,
                    g: float,
                    dt_steps: jnp.ndarray,
-                   t_rise: jnp.ndarray) -> float:
+                   t_rise: jnp.ndarray,
+                   internal_steps: int,
+                   i_soft_limit: float,
+                   i_penalty_weight: float) -> float:
     """
     Compute fitness (MSE) for a single parameter set.
     Lower is better.
     """
     i0 = i_data[0]
-    y_sim, i_sim = simulate_single(params, u_data, dt_steps, t_rise, y0, i0, m, g)
+    y_sim, i_sim = simulate_single(params, u_data, dt_steps, t_rise, y0, i0, m, g, internal_steps)
 
     mse_y = jnp.mean((y_sim - y_real) ** 2)
     mse_i = jnp.mean((i_sim - i_data) ** 2)
     mse_total = 0.8 * mse_y + 0.2 * mse_i
 
+    over_i = jnp.maximum(jnp.abs(i_sim) - i_soft_limit, 0.0)
+    penalty_i = i_penalty_weight * jnp.mean(over_i ** 2)
+
     bad = jnp.any(jnp.isnan(y_sim)) | jnp.any(jnp.isnan(i_sim))
-    return jnp.where(bad, 1e10, mse_total)
+    return jnp.where(bad, 1e10, mse_total + penalty_i)
 
 
 def create_vectorized_fitness(t_data: jnp.ndarray,
@@ -174,7 +197,10 @@ def create_vectorized_fitness(t_data: jnp.ndarray,
                                y0: float,
                                m: float = 0.009,
                                g: float = 9.81,
-                               dt: float = 0.01):
+                               dt: float = 0.01,
+                               internal_steps: int = 10,
+                               i_soft_limit: float = 2.0,
+                               i_penalty_weight: float = 10.0):
     """
     Create a vectorized fitness function that evaluates the ENTIRE population
     in a single GPU call using vmap.
@@ -197,7 +223,21 @@ def create_vectorized_fitness(t_data: jnp.ndarray,
 
     @jit
     def fitness_fn(params):
-        return fitness_single(params, t_data, u_data, i_data, y_real, y0, m, g, dt_steps, t_rise)
+        return fitness_single(
+            params,
+            t_data,
+            u_data,
+            i_data,
+            y_real,
+            y0,
+            m,
+            g,
+            dt_steps,
+            t_rise,
+            internal_steps,
+            i_soft_limit,
+            i_penalty_weight,
+        )
     
     # MAGIC: vmap automatically parallelizes over the population dimension!
     # This is where the GPU acceleration happens.
