@@ -88,19 +88,38 @@ class RandomSearch(BaseOptimizer):
         best_error = float('inf')
         best_solution = None
         
-        for i in range(self.n_iterations):
-            # Generate random solution within bounds
-            solution = self._rng.uniform(self.lb, self.ub)
-            error = self._evaluate(solution)
+        # Batch size for parallel evaluation (avoid memory issues with huge iterations)
+        batch_size = 1000
+        
+        remaining_iters = self.n_iterations
+        
+        while remaining_iters > 0:
+            current_batch = min(batch_size, remaining_iters)
             
-            # Update best solution
-            if error < best_error:
-                best_error = error
-                best_solution = solution.copy()
+            # Generate batch of random solutions
+            solutions = self._rng.uniform(self.lb, self.ub, (current_batch, self.dim))
+            
+            if hasattr(self.problema, 'evaluate_batch'):
+                fitnesses = self.problema.evaluate_batch(solutions)
+                self.evaluations += current_batch
+            else:
+                fitnesses = np.array([self._evaluate(s) for s in solutions])
+            
+            # Find best in batch
+            min_idx = np.argmin(fitnesses)
+            min_fitness = fitnesses[min_idx]
+            
+            if min_fitness < best_error:
+                best_error = min_fitness
+                best_solution = solutions[min_idx].copy()
                 if self.verbose:
-                    print(f"  Iter {i+1}: Nuevo mejor = {error:.6e}")
+                    print(f"  Iter {self.n_iterations - remaining_iters + min_idx + 1}: Nuevo mejor = {best_error:.6e}")
             
-            # Record history
-            self.history.append(best_error)
+            # Update history (fill for the whole batch for consistency in plot length)
+            # This is an approximation since we processed a batch at once
+            for _ in range(current_batch):
+                self.history.append(best_error)
+                
+            remaining_iters -= current_batch
         
         return best_solution, best_error

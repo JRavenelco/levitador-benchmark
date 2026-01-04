@@ -16,6 +16,8 @@ from scipy.integrate import odeint
 from pathlib import Path
 from typing import Tuple, List, Optional
 import logging
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -203,22 +205,13 @@ class LevitadorBenchmark:
         # Simular respuesta "verdadera"
         estado0 = [0.015, 0.0, 0.0]  # y0=15mm, v0=0, i0=0
         
-        def modelo_true(estado, t):
-            y, v, i = estado
-            u = 12.0
-            denom = 1 + (y / a_true)
-            L = k0_true + (k_true / denom)
-            dL_dy = -(k_true / (a_true * denom**2))
-            L = max(L, 1e-6)
-            
-            F_mag = 0.5 * dL_dy * (i**2)
-            dy_dt = v
-            dv_dt = (F_mag + self.m * self.g) / self.m
-            di_dt = (u - self.R*i - i*dL_dy*v) / L
-            
-            return [dy_dt, dv_dt, di_dt]
-        
-        sol = odeint(modelo_true, estado0, self.t_real)
+        # Usamos el mismo modelo dinámico que en fitness_function para consistencia perfecta
+        sol = odeint(
+            self._modelo_dinamico, 
+            estado0, 
+            self.t_real, 
+            args=(k0_true, k_true, a_true)
+        )
         
         # Añadir ruido realista (usando el generador con semilla)
         self.y_real = sol[:, 0] + self._rng.normal(0, self._noise_level, len(self.t_real))
@@ -404,7 +397,21 @@ class LevitadorBenchmark:
         >>> print(fitness)
         [1.23e-06 5.67e-05]
         """
-        return np.array([self.fitness_function(ind) for ind in population])
+        # For small populations, sequential is faster due to process overhead
+        # Threshold determined empirically for typical fitness evaluation times
+        if len(population) < 100:
+            return np.array([self.fitness_function(ind) for ind in population])
+        
+        # Use n-1 cores to leave one free for the system
+        n_cores = max(1, multiprocessing.cpu_count() - 1)
+        
+        # Convert to list for ProcessPoolExecutor.map
+        pop_list = [ind for ind in population]
+        
+        with ProcessPoolExecutor(max_workers=n_cores) as executor:
+            results = list(executor.map(self.fitness_function, pop_list))
+            
+        return np.array(results)
 
     def get_bounds_array(self) -> Tuple[np.ndarray, np.ndarray]:
         """

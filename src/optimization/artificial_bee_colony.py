@@ -108,57 +108,98 @@ class ArtificialBeeColony(BaseOptimizer):
         
         for t in range(self.max_iter):
             # === EMPLOYED BEES PHASE ===
+            # Generate candidates for all bees
+            # Select random neighbor k != i for each i
+            k_indices = np.zeros(self.pop_size, dtype=int)
             for i in range(self.pop_size):
-                # Select random neighbor
-                k = self._rng.choice([j for j in range(self.pop_size) if j != i])
-                j = self._rng.integers(self.dim)  # Dimension to modify
-                
-                # Generate new solution
-                phi = self._rng.uniform(-1, 1)
-                new_food = foods[i].copy()
-                new_food[j] = foods[i, j] + phi * (foods[i, j] - foods[k, j])
-                new_food = np.clip(new_food, self.lb, self.ub)
-                
-                new_fitness = self._evaluate(new_food)
-                
-                # Greedy selection
-                if new_fitness < fitness[i]:
-                    foods[i] = new_food
-                    fitness[i] = new_fitness
-                    trials[i] = 0
-                else:
-                    trials[i] += 1
+                candidates = [x for x in range(self.pop_size) if x != i]
+                k_indices[i] = self._rng.choice(candidates)
+            
+            j_indices = self._rng.integers(0, self.dim, self.pop_size)
+            phi = self._rng.uniform(-1, 1, self.pop_size)
+            
+            new_foods = foods.copy()
+            # Vectorized update: new_foods[i, j] = foods[i, j] + phi * (foods[i, j] - foods[k, j])
+            # We need to apply this per row since j varies
+            rows = np.arange(self.pop_size)
+            new_foods[rows, j_indices] = foods[rows, j_indices] + phi * (foods[rows, j_indices] - foods[k_indices, j_indices])
+            new_foods = np.clip(new_foods, self.lb, self.ub)
+            
+            # Evaluate batch
+            if hasattr(self.problema, 'evaluate_batch'):
+                new_fitnesses = self.problema.evaluate_batch(new_foods)
+                self.evaluations += self.pop_size
+            else:
+                new_fitnesses = np.array([self._evaluate(nf) for nf in new_foods])
+            
+            # Greedy selection
+            improved = new_fitnesses < fitness
+            foods[improved] = new_foods[improved]
+            fitness[improved] = new_fitnesses[improved]
+            trials[improved] = 0
+            trials[~improved] += 1
             
             # === ONLOOKER BEES PHASE ===
-            # Calculate selection probabilities
-            fit_inv = 1 / (1 + fitness)
-            probs = fit_inv / fit_inv.sum()
+            # Calculate probabilities
+            # Add epsilon to avoid division by zero if fitness is -1 (though MSE >= 0)
+            # For MSE, lower is better. We convert to fitness where higher is better for prob calc
+            # Standard ABC: fit = 1/(1+obj) if obj>=0. Here obj is MSE >= 0.
+            fit_val = 1.0 / (1.0 + fitness)
+            probs = fit_val / fit_val.sum()
             
-            for _ in range(self.pop_size):
-                i = self._rng.choice(self.pop_size, p=probs)
-                k = self._rng.choice([j for j in range(self.pop_size) if j != i])
-                j = self._rng.integers(self.dim)
+            # Select targets probabilistically
+            target_indices = self._rng.choice(self.pop_size, self.pop_size, p=probs)
+            
+            # Generate candidates for onlookers
+            k_indices_on = np.zeros(self.pop_size, dtype=int)
+            for idx, target_i in enumerate(target_indices):
+                candidates = [x for x in range(self.pop_size) if x != target_i]
+                k_indices_on[idx] = self._rng.choice(candidates)
                 
-                phi = self._rng.uniform(-1, 1)
-                new_food = foods[i].copy()
-                new_food[j] = foods[i, j] + phi * (foods[i, j] - foods[k, j])
-                new_food = np.clip(new_food, self.lb, self.ub)
-                
-                new_fitness = self._evaluate(new_food)
-                
-                if new_fitness < fitness[i]:
-                    foods[i] = new_food
-                    fitness[i] = new_fitness
-                    trials[i] = 0
+            j_indices_on = self._rng.integers(0, self.dim, self.pop_size)
+            phi_on = self._rng.uniform(-1, 1, self.pop_size)
+            
+            onlooker_candidates = foods[target_indices].copy()
+            rows = np.arange(self.pop_size)
+            onlooker_candidates[rows, j_indices_on] = (
+                foods[target_indices, j_indices_on] + 
+                phi_on * (foods[target_indices, j_indices_on] - foods[k_indices_on, j_indices_on])
+            )
+            onlooker_candidates = np.clip(onlooker_candidates, self.lb, self.ub)
+            
+            # Evaluate batch
+            if hasattr(self.problema, 'evaluate_batch'):
+                onlooker_fitnesses = self.problema.evaluate_batch(onlooker_candidates)
+                self.evaluations += self.pop_size
+            else:
+                onlooker_fitnesses = np.array([self._evaluate(oc) for oc in onlooker_candidates])
+            
+            # Greedy selection (sequential update to handle collisions on targets)
+            for idx, target_i in enumerate(target_indices):
+                if onlooker_fitnesses[idx] < fitness[target_i]:
+                    foods[target_i] = onlooker_candidates[idx]
+                    fitness[target_i] = onlooker_fitnesses[idx]
+                    trials[target_i] = 0
                 else:
-                    trials[i] += 1
+                    trials[target_i] += 1
             
             # === SCOUT BEES PHASE ===
-            for i in range(self.pop_size):
-                if trials[i] > self.limit:
-                    foods[i] = self._rng.uniform(self.lb, self.ub)
-                    fitness[i] = self._evaluate(foods[i])
-                    trials[i] = 0
+            scout_indices = np.where(trials > self.limit)[0]
+            if len(scout_indices) > 0:
+                # Generate new random foods
+                new_randoms = self._rng.uniform(self.lb, self.ub, (len(scout_indices), self.dim))
+                
+                # Evaluate
+                if hasattr(self.problema, 'evaluate_batch'):
+                    scout_fitnesses = self.problema.evaluate_batch(new_randoms)
+                    self.evaluations += len(scout_indices)
+                else:
+                    scout_fitnesses = np.array([self._evaluate(nr) for nr in new_randoms])
+                
+                # Update
+                foods[scout_indices] = new_randoms
+                fitness[scout_indices] = scout_fitnesses
+                trials[scout_indices] = 0
             
             # Update best
             best_idx = np.argmin(fitness)

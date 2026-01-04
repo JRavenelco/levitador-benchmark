@@ -1,0 +1,53 @@
+experiment_name: "Parallel Benchmark Large Pop"
+description: "Comparativa de algoritmos con población grande para probar paralelismo"
+
+optimization:
+  data_path: "data/datos_levitador.txt"
+  n_trials: 5
+  output_dir: "results/parallel_test_100pop"
+  subsample_factor: 10  # Mantener subsample para velocidad, enfocándose en paralelismo de población
+  algorithms:
+    # 1. Differential Evolution
+    DE:
+      pop_size: 100
+      max_iter: 50
+      F: 0.8
+      CR: 0.9
+
+    # 2. Grey Wolf Optimizer
+    GWO:
+      pop_size: 100
+      max_iter: 50
+
+    # 3. Artificial Bee Colony
+    ABC:
+      pop_size: 100
+      max_iter: 50
+      limit: 20
+
+    # 4. Honey Badger Algorithm
+    HBA:
+      pop_size: 100
+      max_iter: 50
+      beta: 6.0
+
+    # 5. Shrimp Optimizer Algorithm
+    SOA:
+      pop_size: 100
+      max_iter: 50
+
+    # 6. Tianji (Horse Racing)
+    Tianji:
+      pop_size: 100
+      max_iter: 50
+
+    # 7. Genetic Algorithm
+    GA:
+      pop_size: 100
+      generations: 50
+      crossover_prob: 0.8
+      mutation_prob: 0.1
+
+    # 8. Random Search (Baseline)
+    RandomSearch:
+      n_iterations: 5000  # Equivale a 50 iteraciones * 100 individuos

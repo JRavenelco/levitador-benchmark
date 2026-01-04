@@ -97,7 +97,12 @@ class GreyWolfOptimizer(BaseOptimizer):
         """
         # Initialize wolf population
         wolves = self._rng.uniform(self.lb, self.ub, (self.pop_size, self.dim))
-        fitness = np.array([self._evaluate(w) for w in wolves])
+        
+        if hasattr(self.problema, 'evaluate_batch'):
+            fitness = self.problema.evaluate_batch(wolves)
+            self.evaluations += self.pop_size
+        else:
+            fitness = np.array([self._evaluate(w) for w in wolves])
         
         # Sort and get Alpha, Beta, Delta
         sorted_idx = np.argsort(fitness)
@@ -113,52 +118,103 @@ class GreyWolfOptimizer(BaseOptimizer):
             # Update 'a' linearly from 2 to 0
             a = 2 - t * (2 / self.max_iter)
             
-            for i in range(self.pop_size):
-                for d in range(self.dim):
-                    # Random coefficients for Alpha
-                    r1, r2 = self._rng.random(), self._rng.random()
-                    A1 = 2 * a * r1 - a
-                    C1 = 2 * r2
-                    
-                    # Random coefficients for Beta
-                    r1, r2 = self._rng.random(), self._rng.random()
-                    A2 = 2 * a * r1 - a
-                    C2 = 2 * r2
-                    
-                    # Random coefficients for Delta
-                    r1, r2 = self._rng.random(), self._rng.random()
-                    A3 = 2 * a * r1 - a
-                    C3 = 2 * r2
-                    
-                    # Distance to Alpha, Beta, Delta
-                    D_alpha = abs(C1 * alpha[d] - wolves[i, d])
-                    D_beta = abs(C2 * beta[d] - wolves[i, d])
-                    D_delta = abs(C3 * delta[d] - wolves[i, d])
-                    
-                    # Position candidates
-                    X1 = alpha[d] - A1 * D_alpha
-                    X2 = beta[d] - A2 * D_beta
-                    X3 = delta[d] - A3 * D_delta
-                    
-                    # New position (average)
-                    wolves[i, d] = (X1 + X2 + X3) / 3
-                
-                # Enforce bounds
-                wolves[i] = np.clip(wolves[i], self.lb, self.ub)
+            # Vectorized update of positions
+            # Generate random numbers for all wolves and dimensions at once
+            r1 = self._rng.random((self.pop_size, self.dim))
+            r2 = self._rng.random((self.pop_size, self.dim))
+            
+            A1 = 2 * a * r1 - a
+            C1 = 2 * r2
+            
+            r1 = self._rng.random((self.pop_size, self.dim))
+            r2 = self._rng.random((self.pop_size, self.dim))
+            A2 = 2 * a * r1 - a
+            C2 = 2 * r2
+            
+            r1 = self._rng.random((self.pop_size, self.dim))
+            r2 = self._rng.random((self.pop_size, self.dim))
+            A3 = 2 * a * r1 - a
+            C3 = 2 * r2
+            
+            # Calculate distances and new positions (broadcasting)
+            D_alpha = np.abs(C1 * alpha - wolves)
+            D_beta = np.abs(C2 * beta - wolves)
+            D_delta = np.abs(C3 * delta - wolves)
+            
+            X1 = alpha - A1 * D_alpha
+            X2 = beta - A2 * D_beta
+            X3 = delta - A3 * D_delta
+            
+            wolves = (X1 + X2 + X3) / 3
+            
+            # Enforce bounds
+            wolves = np.clip(wolves, self.lb, self.ub)
             
             # Evaluate and update hierarchy
-            fitness = np.array([self._evaluate(w) for w in wolves])
+            if hasattr(self.problema, 'evaluate_batch'):
+                fitness = self.problema.evaluate_batch(wolves)
+                self.evaluations += self.pop_size
+            else:
+                fitness = np.array([self._evaluate(w) for w in wolves])
             
-            for i in range(self.pop_size):
-                if fitness[i] < alpha_score:
-                    delta, delta_score = beta.copy(), beta_score
-                    beta, beta_score = alpha.copy(), alpha_score
-                    alpha, alpha_score = wolves[i].copy(), fitness[i]
-                elif fitness[i] < beta_score:
-                    delta, delta_score = beta.copy(), beta_score
-                    beta, beta_score = wolves[i].copy(), fitness[i]
-                elif fitness[i] < delta_score:
-                    delta, delta_score = wolves[i].copy(), fitness[i]
+            # Update Alpha, Beta, Delta
+            # We need to check against current alpha, beta, delta scores
+            # Or just resort everyone including the old alpha, beta, delta?
+            # Standard GWO updates hierarchy from the current population
+            
+            # Simple sorting of current population to find new leaders
+            current_sorted_idx = np.argsort(fitness)
+            
+            # Check if we found better leaders than current ones
+            # (Elitism is inherent if we keep bests, but standard GWO replaces them from population)
+            # To ensure monotonic convergence, we should compare with previous bests
+            # But the standard algorithm updates them every iteration from the new positions.
+            # However, if the new positions are worse, we might lose the best solution.
+            # Usually GWO doesn't guarantee keeping the previous Alpha if everyone moves away.
+            # But we want to return the best found ever.
+            
+            current_best_idx = current_sorted_idx[0]
+            current_best_score = fitness[current_best_idx]
+            
+            if current_best_score < alpha_score:
+                # Update hierarchy
+                alpha_score = current_best_score
+                alpha = wolves[current_best_idx].copy()
+                
+                # Update Beta and Delta
+                if self.pop_size > 1:
+                    beta_score = fitness[current_sorted_idx[1]]
+                    beta = wolves[current_sorted_idx[1]].copy()
+                if self.pop_size > 2:
+                    delta_score = fitness[current_sorted_idx[2]]
+                    delta = wolves[current_sorted_idx[2]].copy()
+            else:
+                # If we didn't improve alpha, we might still have improved beta or delta
+                # Or just re-evaluate hierarchy from current set
+                # For simplicity and standard behavior, let's update from current pop
+                # but keep the global best in 'alpha' for return value
+                pass 
+                # Note: In standard GWO, Alpha, Beta, Delta are agents that move.
+                # Here we implicitly updated them.
+                # Let's stick to the logic: Alpha is the best solution found SO FAR.
+                
+                # Re-check all against alpha, beta, delta logic strictly
+                for i in range(self.pop_size):
+                    if fitness[i] < alpha_score:
+                        delta_score = beta_score
+                        delta = beta.copy()
+                        beta_score = alpha_score
+                        beta = alpha.copy()
+                        alpha_score = fitness[i]
+                        alpha = wolves[i].copy()
+                    elif fitness[i] < beta_score:
+                        delta_score = beta_score
+                        delta = beta.copy()
+                        beta_score = fitness[i]
+                        beta = wolves[i].copy()
+                    elif fitness[i] < delta_score:
+                        delta_score = fitness[i]
+                        delta = wolves[i].copy()
             
             self.history.append(alpha_score)
             

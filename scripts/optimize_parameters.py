@@ -79,7 +79,8 @@ def run_optimization(
     algorithms: List[str],
     n_trials: int = 5,
     output_dir: str = 'results',
-    config_dict: Dict = None
+    config_dict: Dict = None,
+    subsample_factor: int = 10
 ):
     """
     Run parameter optimization with specified algorithms.
@@ -96,6 +97,8 @@ def run_optimization(
         Directory to save results
     config_dict : dict
         Configuration dictionary
+    subsample_factor : int
+        Factor to subsample data (higher = faster)
     
     Returns
     -------
@@ -113,10 +116,11 @@ def run_optimization(
     print(f"Data: {data_path}")
     print(f"Algorithms: {', '.join(algorithms)}")
     print(f"Trials: {n_trials}")
+    print(f"Subsample Factor: {subsample_factor}")
     print(f"Output: {output_dir}")
     print(f"{'='*70}\n")
     
-    problema = ParameterBenchmark(data_path, verbose=True)
+    problema = ParameterBenchmark(data_path, verbose=True, subsample_factor=subsample_factor)
     
     # Store results
     all_results = {}
@@ -333,6 +337,8 @@ Examples:
                        help='Number of trials per algorithm')
     parser.add_argument('--output', type=str, default='results',
                        help='Output directory for results')
+    parser.add_argument('--subsample', type=int, default=10,
+                       help='Subsample factor for experimental data (higher = faster)')
     
     args = parser.parse_args()
     
@@ -346,6 +352,8 @@ Examples:
                 args.data = opt_config.get('data_path', args.data)
                 args.trials = opt_config.get('n_trials', args.trials)
                 args.output = opt_config.get('output_dir', args.output)
+                # Allow config to override default subsample if present
+                args.subsample = opt_config.get('subsample_factor', args.subsample)
                 if 'algorithms' in opt_config:
                     args.algorithms = opt_config['algorithms']
         except Exception as e:
@@ -358,7 +366,8 @@ Examples:
         algorithms=args.algorithms,
         n_trials=args.trials,
         output_dir=args.output,
-        config_dict=config_dict
+        config_dict=config_dict,
+        subsample_factor=args.subsample
     )
     
     print(f"\n{'='*70}")

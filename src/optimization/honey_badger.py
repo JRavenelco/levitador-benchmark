@@ -110,35 +110,68 @@ class HoneyBadgerAlgorithm(BaseOptimizer):
         for t in range(self.max_iter):
             alpha = self._get_alpha(t)  # Decay factor
             
-            for i in range(self.pop_size):
-                # Smell intensity
-                r = self._rng.random()
-                di = prey - badgers[i]  # Distance to prey
-                S = (prey - badgers[i]) / (np.abs(di) + 1e-10)  # Direction
-                I = r * S  # Intensity
+            # Prepare arrays for vectorized calculation
+            new_badgers = np.zeros_like(badgers)
+            
+            # Calculate intensity I
+            # r is random per badger? Original code: r = self._rng.random() inside loop i
+            # So we generate a vector of r
+            r = self._rng.random((self.pop_size, 1))
+            di = prey - badgers
+            S = di / (np.abs(di) + 1e-10)
+            I = r * S
+            
+            # Random numbers for mode selection
+            mode_rand = self._rng.random(self.pop_size)
+            
+            # Digging mode indices
+            digging_mask = mode_rand < 0.5
+            
+            # --- Digging Phase ---
+            if np.any(digging_mask):
+                n_dig = np.sum(digging_mask)
+                r3 = self._rng.random((n_dig, 1))
+                r4 = self._rng.random((n_dig, 1))
+                r5 = self._rng.random((n_dig, 1))
                 
-                # Choose mode: digging or honey
-                if self._rng.random() < 0.5:
-                    # Digging mode
-                    r3, r4, r5 = self._rng.random(3)
-                    F = 1 if r3 < 0.5 else -1  # Direction flag
-                    new_pos = prey + F * self.beta * I * prey + F * r4 * alpha * di * np.abs(np.cos(2*np.pi*r5) * (1 - np.cos(2*np.pi*r5)))
-                else:
-                    # Honey mode
-                    r6, r7 = self._rng.random(2)
-                    F = 1 if r6 < 0.5 else -1
-                    new_pos = prey + F * r7 * alpha * di
+                F = np.where(r3 < 0.5, 1.0, -1.0)
                 
-                new_pos = np.clip(new_pos, self.lb, self.ub)
-                new_fitness = self._evaluate(new_pos)
+                term1 = prey + F * self.beta * I[digging_mask] * prey
+                term2 = F * r4 * alpha * di[digging_mask] * np.abs(np.cos(2*np.pi*r5) * (1 - np.cos(2*np.pi*r5)))
                 
-                if new_fitness < fitness[i]:
-                    badgers[i] = new_pos
-                    fitness[i] = new_fitness
-                    
-                    if new_fitness < prey_fitness:
-                        prey = new_pos.copy()
-                        prey_fitness = new_fitness
+                new_badgers[digging_mask] = term1 + term2
+            
+            # --- Honey Phase ---
+            honey_mask = ~digging_mask
+            if np.any(honey_mask):
+                n_honey = np.sum(honey_mask)
+                r6 = self._rng.random((n_honey, 1))
+                r7 = self._rng.random((n_honey, 1))
+                
+                F = np.where(r6 < 0.5, 1.0, -1.0)
+                
+                new_badgers[honey_mask] = prey + F * r7 * alpha * di[honey_mask]
+            
+            # Clip bounds
+            new_badgers = np.clip(new_badgers, self.lb, self.ub)
+            
+            # Evaluate batch
+            if hasattr(self.problema, 'evaluate_batch'):
+                new_fitness = self.problema.evaluate_batch(new_badgers)
+                self.evaluations += self.pop_size
+            else:
+                new_fitness = np.array([self._evaluate(nb) for nb in new_badgers])
+            
+            # Update badgers
+            improved = new_fitness < fitness
+            badgers[improved] = new_badgers[improved]
+            fitness[improved] = new_fitness[improved]
+            
+            # Update best
+            best_idx = np.argmin(fitness)
+            if fitness[best_idx] < prey_fitness:
+                prey = badgers[best_idx].copy()
+                prey_fitness = fitness[best_idx]
             
             self.history.append(prey_fitness)
             

@@ -110,57 +110,78 @@ class TianjiOptimizer(BaseOptimizer):
             # Sort by fitness
             sorted_idx = np.argsort(fitness)
             
-            # Divide into groups
-            superior = sorted_idx[:group_size]
-            medio = sorted_idx[group_size:2*group_size]
-            inferior = sorted_idx[2*group_size:]
+            # Divide into groups indices
+            superior_idx = sorted_idx[:group_size]
+            medio_idx = sorted_idx[group_size:2*group_size]
+            inferior_idx = sorted_idx[2*group_size:]
             
             # Adaptation factor (decreases over time)
             sigma = 0.1 * (1 - t / self.max_iter)
             
+            # Prepare new positions array
+            new_horses = horses.copy()
+            
             # === SUPERIOR GROUP: Local Exploitation ===
-            for i in superior:
-                perturbation = self._rng.normal(0, sigma, self.dim) * (self.ub - self.lb)
-                new_pos = horses[i] + perturbation
-                new_pos = np.clip(new_pos, self.lb, self.ub)
-                new_fitness = self._evaluate(new_pos)
-                
-                if new_fitness < fitness[i]:
-                    horses[i] = new_pos
-                    fitness[i] = new_fitness
+            # Generate perturbations for superior group
+            pert_sup = self._rng.normal(0, sigma, (len(superior_idx), self.dim)) * (self.ub - self.lb)
+            new_horses[superior_idx] = horses[superior_idx] + pert_sup
             
             # === MEDIUM GROUP: Balance ===
-            for i in medio:
-                if self._rng.random() < 0.5:
-                    # Move towards best
-                    r = self._rng.random()
-                    new_pos = horses[i] + r * (best_solution - horses[i])
-                else:
-                    # Moderate exploration
-                    perturbation = self._rng.normal(0, sigma * 2, self.dim) * (self.ub - self.lb)
-                    new_pos = horses[i] + perturbation
-                
-                new_pos = np.clip(new_pos, self.lb, self.ub)
-                new_fitness = self._evaluate(new_pos)
-                
-                if new_fitness < fitness[i]:
-                    horses[i] = new_pos
-                    fitness[i] = new_fitness
+            # Decide between moving towards best or exploring
+            rand_med = self._rng.random(len(medio_idx))
+            move_to_best_mask = rand_med < 0.5
+            explore_mask = ~move_to_best_mask
+            
+            # Move towards best
+            if np.any(move_to_best_mask):
+                idx_move = medio_idx[move_to_best_mask]
+                r_move = self._rng.random((len(idx_move), 1))
+                new_horses[idx_move] = horses[idx_move] + r_move * (best_solution - horses[idx_move])
+            
+            # Moderate exploration
+            if np.any(explore_mask):
+                idx_exp = medio_idx[explore_mask]
+                pert_med = self._rng.normal(0, sigma * 2, (len(idx_exp), self.dim)) * (self.ub - self.lb)
+                new_horses[idx_exp] = horses[idx_exp] + pert_med
             
             # === INFERIOR GROUP: Global Exploration ===
-            for i in inferior:
-                if self._rng.random() < 0.3:
-                    # Random re-initialization
-                    new_pos = self._rng.uniform(self.lb, self.ub)
-                else:
-                    # Large jump (learn from superior)
-                    r1, r2 = self._rng.random(2)
-                    j = self._rng.choice(superior)
-                    new_pos = horses[i] + r1 * (horses[j] - horses[i]) + r2 * self._rng.normal(0, 0.5, self.dim) * (self.ub - self.lb)
+            rand_inf = self._rng.random(len(inferior_idx))
+            reinit_mask = rand_inf < 0.3
+            jump_mask = ~reinit_mask
+            
+            # Random re-initialization
+            if np.any(reinit_mask):
+                idx_reinit = inferior_idx[reinit_mask]
+                new_horses[idx_reinit] = self._rng.uniform(self.lb, self.ub, (len(idx_reinit), self.dim))
+            
+            # Large jump (learn from superior)
+            if np.any(jump_mask):
+                idx_jump = inferior_idx[jump_mask]
+                r1 = self._rng.random((len(idx_jump), 1))
+                r2 = self._rng.random((len(idx_jump), 1))
                 
-                new_pos = np.clip(new_pos, self.lb, self.ub)
-                fitness[i] = self._evaluate(new_pos)
-                horses[i] = new_pos
+                # Pick random superior horses to learn from
+                sup_choices = self._rng.choice(superior_idx, len(idx_jump))
+                
+                jump_term = r1 * (horses[sup_choices] - horses[idx_jump])
+                pert_term = r2 * self._rng.normal(0, 0.5, (len(idx_jump), self.dim)) * (self.ub - self.lb)
+                
+                new_horses[idx_jump] = horses[idx_jump] + jump_term + pert_term
+            
+            # Clip all bounds
+            new_horses = np.clip(new_horses, self.lb, self.ub)
+            
+            # Evaluate batch
+            if hasattr(self.problema, 'evaluate_batch'):
+                new_fitness = self.problema.evaluate_batch(new_horses)
+                self.evaluations += self.pop_size
+            else:
+                new_fitness = np.array([self._evaluate(h) for h in new_horses])
+            
+            # Update population (Greedy selection per horse)
+            improved = new_fitness < fitness
+            horses[improved] = new_horses[improved]
+            fitness[improved] = new_fitness[improved]
             
             # Update best
             best_idx = np.argmin(fitness)

@@ -108,28 +108,56 @@ class ShrimpOptimizer(BaseOptimizer):
             # Exploration/exploitation weight (decreases from 1 to 0)
             w = 1 - t / self.max_iter
             
-            for i in range(self.pop_size):
-                r = self._rng.random()
+            # Prepare new positions array
+            new_shrimps = np.zeros_like(shrimps)
+            
+            # Generate random numbers for decision
+            r = self._rng.random((self.pop_size, 1))
+            
+            # Exploration indices (Lévy flight)
+            explore_mask = (r < 0.5).flatten()
+            n_explore = np.sum(explore_mask)
+            
+            # Exploitation indices (Move towards best)
+            exploit_mask = ~explore_mask
+            n_exploit = np.sum(exploit_mask)
+            
+            if n_explore > 0:
+                levy = self._levy_flight(n_explore)
+                new_shrimps[explore_mask] = shrimps[explore_mask] + w * levy * (self.ub - self.lb)
+            
+            if n_exploit > 0:
+                r1 = self._rng.random((n_exploit, 1))
+                r2 = self._rng.random((n_exploit, 1))
                 
-                if r < 0.5:
-                    # Exploration phase: Lévy flight
-                    levy = self._levy_flight()
-                    new_pos = shrimps[i] + w * levy * (self.ub - self.lb)
-                else:
-                    # Exploitation phase: Move towards best
-                    r1, r2 = self._rng.random(2)
-                    new_pos = shrimps[i] + r1 * (best_solution - shrimps[i]) + r2 * (shrimps[self._rng.integers(self.pop_size)] - shrimps[i])
+                # Random shrimp indices for second term
+                rand_indices = self._rng.integers(0, self.pop_size, n_exploit)
+                random_shrimps = shrimps[rand_indices]
                 
-                new_pos = np.clip(new_pos, self.lb, self.ub)
-                new_fitness = self._evaluate(new_pos)
+                term1 = r1 * (best_solution - shrimps[exploit_mask])
+                term2 = r2 * (random_shrimps - shrimps[exploit_mask])
                 
-                if new_fitness < fitness[i]:
-                    shrimps[i] = new_pos
-                    fitness[i] = new_fitness
-                    
-                    if new_fitness < best_fitness:
-                        best_solution = new_pos.copy()
-                        best_fitness = new_fitness
+                new_shrimps[exploit_mask] = shrimps[exploit_mask] + term1 + term2
+            
+            # Clip bounds
+            new_shrimps = np.clip(new_shrimps, self.lb, self.ub)
+            
+            # Evaluate batch
+            if hasattr(self.problema, 'evaluate_batch'):
+                new_fitness = self.problema.evaluate_batch(new_shrimps)
+                self.evaluations += self.pop_size
+            else:
+                new_fitness = np.array([self._evaluate(s) for s in new_shrimps])
+            
+            # Update best and population
+            improved = new_fitness < fitness
+            shrimps[improved] = new_shrimps[improved]
+            fitness[improved] = new_fitness[improved]
+            
+            best_idx = np.argmin(fitness)
+            if fitness[best_idx] < best_fitness:
+                best_solution = shrimps[best_idx].copy()
+                best_fitness = fitness[best_idx]
             
             self.history.append(best_fitness)
             
@@ -138,25 +166,32 @@ class ShrimpOptimizer(BaseOptimizer):
         
         return best_solution, best_fitness
     
-    def _levy_flight(self, beta=1.5):
+    def _levy_flight(self, n_steps=1, beta=1.5):
         """
-        Generate a Lévy flight step.
+        Generate Lévy flight steps.
         
         Uses the Mantegna method to generate Lévy-distributed random steps.
-        Fixed to use math.gamma instead of deprecated np.math.gamma.
         
         Parameters
         ----------
+        n_steps : int
+            Number of steps to generate
         beta : float
             Lévy exponent (default: 1.5)
         
         Returns
         -------
         np.ndarray
-            Lévy flight step vector
+            Lévy flight step vectors of shape (n_steps, dim)
         """
         sigma = (math.gamma(1 + beta) * np.sin(np.pi * beta / 2) /
                  (math.gamma((1 + beta) / 2) * beta * 2**((beta - 1) / 2)))**(1 / beta)
-        u = self._rng.normal(0, sigma, self.dim)
-        v = self._rng.normal(0, 1, self.dim)
-        return u / (np.abs(v)**(1 / beta))
+        
+        if n_steps == 1:
+            u = self._rng.normal(0, sigma, self.dim)
+            v = self._rng.normal(0, 1, self.dim)
+            return u / (np.abs(v)**(1 / beta))
+        else:
+            u = self._rng.normal(0, sigma, (n_steps, self.dim))
+            v = self._rng.normal(0, 1, (n_steps, self.dim))
+            return u / (np.abs(v)**(1 / beta))

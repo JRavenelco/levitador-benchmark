@@ -21,6 +21,8 @@ from scipy.signal import savgol_filter
 from typing import Tuple, Optional, Dict, List
 from pathlib import Path
 import logging
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -339,6 +341,10 @@ class ParameterBenchmark:
         else:
             di_dt = 0.0
         
+        # Limitar derivadas para estabilidad numérica (evita que odeint se cuelgue)
+        y_ddot = np.clip(y_ddot, -1e5, 1e5)
+        di_dt = np.clip(di_dt, -1e7, 1e7)
+        
         return np.array([y_dot, y_ddot, di_dt])
     
     def simulate(self, params: List[float]) -> Tuple[np.ndarray, np.ndarray]:
@@ -433,6 +439,36 @@ class ParameterBenchmark:
         
         return mse_total
     
+    def evaluate_batch(self, population: np.ndarray) -> np.ndarray:
+        """
+        Evaluate a population of solutions in parallel.
+        
+        Parameters
+        ----------
+        population : np.ndarray
+            Array of shape (pop_size, dim) containing candidate solutions
+            
+        Returns
+        -------
+        fitness_values : np.ndarray
+            Array of shape (pop_size,) containing fitness values
+        """
+        # For small populations, sequential is faster due to process overhead
+        if len(population) < 100:
+            return np.array([self.fitness_function(ind) for ind in population])
+        
+        # Ensure population is a list of lists/arrays for map
+        pop_list = [ind for ind in population]
+        
+        # Use ProcessPoolExecutor for parallel execution
+        # Use n-1 cores to leave one free for the system
+        n_cores = max(1, multiprocessing.cpu_count() - 1)
+        
+        with ProcessPoolExecutor(max_workers=n_cores) as executor:
+            results = list(executor.map(self.fitness_function, pop_list))
+            
+        return np.array(results)
+
     def get_bounds_array(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get bounds as separate arrays."""
         bounds_array = np.array(self.bounds)

@@ -110,7 +110,11 @@ class GeneticAlgorithm(BaseOptimizer):
         
         for gen in range(self.generations):
             # Evaluate fitness
-            fitness = np.array([self._evaluate(ind) for ind in population])
+            if hasattr(self.problema, 'evaluate_batch'):
+                fitness = self.problema.evaluate_batch(population)
+                self.evaluations += len(population)
+            else:
+                fitness = np.array([self._evaluate(ind) for ind in population])
             
             # Update best
             best_idx = np.argmin(fitness)

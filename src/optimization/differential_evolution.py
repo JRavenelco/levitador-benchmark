@@ -111,6 +111,9 @@ class DifferentialEvolution(BaseOptimizer):
         
         # Main evolution loop
         for gen in range(self.max_iter):
+            # Generate all trial vectors first
+            trials = np.zeros((self.pop_size, self.dim))
+            
             for i in range(self.pop_size):
                 # === MUTATION ===
                 # Select 3 random distinct individuals
@@ -128,17 +131,24 @@ class DifferentialEvolution(BaseOptimizer):
                 for j in range(self.dim):
                     if self._rng.random() < self.CR or j == j_rand:
                         trial[j] = mutant[j]
-                
-                # === SELECTION ===
-                trial_fitness = self._evaluate(trial)
-                
-                if trial_fitness < fitness[i]:
-                    population[i] = trial
-                    fitness[i] = trial_fitness
+                trials[i] = trial
+            
+            # === EVALUATION ===
+            if hasattr(self.problema, 'evaluate_batch'):
+                trial_fitnesses = self.problema.evaluate_batch(trials)
+                self.evaluations += self.pop_size
+            else:
+                trial_fitnesses = np.array([self._evaluate(ind) for ind in trials])
+            
+            # === SELECTION ===
+            for i in range(self.pop_size):
+                if trial_fitnesses[i] < fitness[i]:
+                    population[i] = trials[i]
+                    fitness[i] = trial_fitnesses[i]
                     
-                    if trial_fitness < best_error:
-                        best_solution = trial.copy()
-                        best_error = trial_fitness
+                    if trial_fitnesses[i] < best_error:
+                        best_solution = trials[i].copy()
+                        best_error = trial_fitnesses[i]
             
             self.history.append(best_error)
             
