@@ -85,11 +85,15 @@ def run_benchmark(args):
     print(f"Initial position: y0={y0*1000:.2f} mm")
     
     # Parameter bounds: [K0, A, R0, alpha]
+    # Basado en física del levitador de Valentín:
+    # - Bobina: L ~ 0.01-0.1 H típico para electroimán pequeño
+    # - Gap: A ~ 1-15mm (geometría del sistema)
+    # - Resistencia: R0 ~ 2-25 Ω (nominal 2.72Ω, pero estimación puede ser mayor)
     bounds = jnp.array([
-        [0.001, 0.15],    # K0: Inductance numerator [H]
-        [0.0001, 0.05],   # A: Geometric parameter [m]
-        [1.0, 5.0],       # R0: Base resistance [Ω]
-        [-0.01, 0.01]     # alpha: Temperature coefficient
+        [0.005, 0.5],     # K0: Inductance numerator [H] - ampliado
+        [0.001, 0.020],   # A: Geometric parameter [m] (1-20mm)
+        [2.0, 25.0],      # R0: Base resistance [Ω] - ampliado por anomalía detectada
+        [-0.05, 0.05]     # alpha: Temperature coefficient
     ])
     
     # Create VECTORIZED fitness function
