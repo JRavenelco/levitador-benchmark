@@ -3,127 +3,104 @@ HiPPO Layer
 ===========
 
 HiPPO-LegS (Legendre-Scaled) layer for online function approximation.
-Based on: https://arxiv.org/abs/2008.07669
-
-This layer maintains a polynomial representation of the input signal history,
-which is useful for capturing temporal dynamics in the flux observer.
-
-HiPPO equation:
-    dc/dt = A·c + B·u(t)
-
-where c is the coefficient vector for Legendre polynomials.
-
-Usage:
-    layer = HiPPOLayer(N=8, dt=0.01)
-    output = layer(input_sequence)  # (batch, seq_len, input_dim) -> (batch, N)
-
-Note: Requires PyTorch. This is a stub file - implementation should be based on
-the notebook KAN_SENSORLESS_REAL.ipynb.
-
-Key features to implement:
-- JIT compilation for performance
-- Batch processing support
-- Configurable N (number of Legendre basis functions)
-- Online update capability
+Optimized with TorchScript (JIT) for fast recurrence.
 """
 
-try:
-    import torch
-    import torch.nn as nn
-    import numpy as np
+import torch
+import torch.nn as nn
+import numpy as np
+
+# JIT compiled function for fast recurrence
+@torch.jit.script
+def hippo_recurrence(x_seq: torch.Tensor, A_d: torch.Tensor, B_d: torch.Tensor) -> torch.Tensor:
+    """
+    Fast recurrence implementation using TorchScript.
     
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
+    Parameters
+    ----------
+    x_seq : torch.Tensor
+        Input sequence [Batch, SeqLen, Features]
+    A_d : torch.Tensor
+        Discretized A matrix [N, N]
+    B_d : torch.Tensor
+        Discretized B matrix [N, 1]
+        
+    Returns
+    -------
+    torch.Tensor
+        Sequence of coefficients [Batch, SeqLen, Features * N]
+    """
+    B, S, F = x_seq.shape
+    N = A_d.shape[0]
+    
+    # Initialize coefficients c (Batch, Features, N)
+    c = torch.zeros(B, F, N, device=x_seq.device)
+    out = []
+
+    # Pre-transpose A for efficient matmul
+    A_t = A_d.t()
+
+    for t in range(S):
+        # x_t: [Batch, Features, 1]
+        x_t = x_seq[:, t, :].unsqueeze(-1)
+        
+        # Linear recurrence: c_t = c_{t-1} @ A^T + B * x_t
+        # c: [B, F, N]
+        # A_t: [N, N] -> broadcasted matmul
+        # B_d: [N, 1] -> broadcasted add
+        c = torch.matmul(c, A_t) + B_d * x_t
+        
+        # Flatten features and coefficients for output: [Batch, Features * N]
+        out.append(c.reshape(B, -1))
+
+    # Stack along sequence dimension: [Batch, SeqLen, Features * N]
+    return torch.stack(out, dim=1)
 
 
-if TORCH_AVAILABLE:
-    class HiPPOLayer(nn.Module):
+class HiPPOLayer(nn.Module):
+    """
+    HiPPO-LegS layer for capturing temporal history.
+    Uses Legendre polynomials to project history into a low-dimensional state.
+    """
+    def __init__(self, N=8, dt=0.01):
+        super().__init__()
+        self.N = N
+        self.dt = dt
+
+        # Legendre Matrix A calculation
+        A_mat = np.zeros((N, N))
+        for n in range(N):
+            for m in range(N):
+                if n > m:
+                    A_mat[n, m] = np.sqrt(2*n + 1) * np.sqrt(2*m + 1)
+                elif n == m:
+                    A_mat[n, m] = n + 1
+
+        # Bilinear Discretization (Tustin)
+        I = np.eye(N)
+        # Avoid singular matrix in rare cases, though usually fine for HiPPO
+        inv_term = np.linalg.inv(I - (dt/2) * A_mat)
+        
+        A_disc = inv_term @ (I + (dt/2) * A_mat)
+        B_disc = inv_term @ (dt * np.sqrt(2 * np.arange(N) + 1))
+        B_disc = B_disc.reshape(-1, 1) # Ensure column vector
+
+        # Register buffers (non-trainable constants)
+        self.register_buffer("A_d", torch.tensor(A_disc, dtype=torch.float32))
+        self.register_buffer("B_d", torch.tensor(B_disc, dtype=torch.float32))
+
+    def forward(self, x_seq):
         """
-        HiPPO-LegS layer for online function approximation.
+        Forward pass.
         
         Parameters
         ----------
-        N : int
-            Number of Legendre basis functions
-        dt : float
-            Time step for discretization
+        x_seq : torch.Tensor
+            Input [Batch, SeqLen, Features]
+            
+        Returns
+        -------
+        torch.Tensor
+            Output [Batch, SeqLen, Features * N]
         """
-        
-        def __init__(self, N: int = 8, dt: float = 0.01):
-            super().__init__()
-            self.N = N
-            self.dt = dt
-            
-            # Initialize HiPPO matrices (Legendre-Scaled)
-            A, B = self._make_hippo_matrices(N)
-            
-            # Register as buffers (not trainable)
-            self.register_buffer('A', torch.tensor(A, dtype=torch.float32))
-            self.register_buffer('B', torch.tensor(B, dtype=torch.float32))
-            
-            # Discretize: c[k+1] = A_d·c[k] + B_d·u[k]
-            A_d, B_d = self._discretize(A, B, dt)
-            self.register_buffer('A_d', torch.tensor(A_d, dtype=torch.float32))
-            self.register_buffer('B_d', torch.tensor(B_d, dtype=torch.float32))
-        
-        def _make_hippo_matrices(self, N):
-            """Create HiPPO-LegS transition matrices."""
-            # HiPPO-LegS (Legendre-Scaled) matrices
-            # A[n,k] for Legendre basis
-            A = np.zeros((N, N))
-            B = np.zeros((N, 1))
-            
-            for n in range(N):
-                for k in range(N):
-                    if n > k:
-                        A[n, k] = (2*n + 1) * (-1)**(n-k)
-                    elif n == k:
-                        A[n, k] = n + 0.5
-                    else:
-                        A[n, k] = 0
-                
-                B[n, 0] = (2*n + 1)
-            
-            return A, B
-        
-        def _discretize(self, A, B, dt):
-            """Discretize continuous-time system using Euler method."""
-            A_d = np.eye(self.N) + dt * A
-            B_d = dt * B
-            return A_d, B_d
-        
-        def forward(self, u):
-            """
-            Forward pass through HiPPO layer.
-            
-            Parameters
-            ----------
-            u : torch.Tensor
-                Input tensor of shape (batch, seq_len, input_dim) or (batch, seq_len)
-            
-            Returns
-            -------
-            c : torch.Tensor
-                HiPPO coefficients of shape (batch, N)
-            """
-            # TODO: Implement full forward pass with sequence processing
-            # For now, return placeholder
-            batch_size = u.shape[0]
-            return torch.zeros(batch_size, self.N, device=u.device)
-    
-else:
-    # Stub class when PyTorch is not available
-    class HiPPOLayer:
-        """Stub class - PyTorch not available."""
-        def __init__(self, *args, **kwargs):
-            raise ImportError("PyTorch is required for HiPPOLayer. Install with: pip install torch")
-
-
-# TODO: Complete implementation based on KAN_SENSORLESS_REAL.ipynb
-# Key aspects:
-# 1. Implement proper forward pass with sequence processing
-# 2. Add JIT compilation decorators
-# 3. Handle variable sequence lengths
-# 4. Add reset() method for online learning
-# 5. Implement batch-wise processing efficiently
+        return hippo_recurrence(x_seq, self.A_d, self.B_d)
