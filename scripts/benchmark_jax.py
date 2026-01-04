@@ -82,7 +82,7 @@ def run_benchmark(args):
     # Physical constants
     m = 0.009  # kg
     g = 9.81   # m/s²
-    dt = float(t_data[1] - t_data[0]) * args.subsample  # Adjust dt for subsampling
+    dt = float(t_data[1] - t_data[0])
     y0 = float(y_data[0])
     
     print(f"\nPhysical parameters: m={m} kg, g={g} m/s², dt={dt:.4f} s")

@@ -60,86 +60,88 @@ class LevitadorPhysicsJAX:
         return 0.5 * i ** 2 * dL
 
 
-@partial(jit, static_argnums=(6, 7, 8))
-def simulate_single(params: jnp.ndarray, 
-                    t_data: jnp.ndarray, 
-                    u_data: jnp.ndarray, 
-                    i_data: jnp.ndarray,
+@jit
+def simulate_single(params: jnp.ndarray,
+                    u_data: jnp.ndarray,
+                    dt_steps: jnp.ndarray,
+                    t_rise: jnp.ndarray,
                     y0: float,
-                    y_dot0: float,
+                    i0: float,
                     m: float,
-                    g: float,
-                    dt: float) -> jnp.ndarray:
+                    g: float) -> tuple[jnp.ndarray, jnp.ndarray]:
     """
     Simulate the levitator dynamics for a single parameter set.
+    
+    This matches the original ODE model used in ParameterBenchmark:
+    State: [y, y_dot, i]
+    - Mechanical: m*y_ddot = 0.5*dL/dy*i^2 + m*g
+    - Electrical: L(y)*di/dt + (dL/dy)*y_dot*i + R(t)*i = u
     
     Parameters
     ----------
     params : jnp.ndarray
         [K0, A, R0, alpha] - parameters to evaluate
-    t_data : jnp.ndarray
-        Time points [N]
     u_data : jnp.ndarray
         Voltage data [N]
-    i_data : jnp.ndarray
-        Current data [N]
-    y0, y_dot0 : float
-        Initial conditions
-    m, g, dt : float
+    dt_steps : jnp.ndarray
+        Time step per sample [N]
+    t_rise : jnp.ndarray
+        Approximated temperature rise [N] from Joule heating proxy
+    y0 : float
+        Initial position
+    i0 : float
+        Initial current
+    m, g : float
         Physical constants
     
     Returns
     -------
     y_sim : jnp.ndarray
         Simulated position trajectory [N]
+    i_sim : jnp.ndarray
+        Simulated current trajectory [N]
     """
     K0, A, R0, alpha = params[0], params[1], params[2], params[3]
-    
-    N = t_data.shape[0]
-    
-    # Initial state: [y, y_dot]
-    state0 = jnp.array([y0, y_dot0])
-    
+
+    state0 = jnp.array([y0, 0.0, i0])
+
     def step_fn(state, inputs):
-        """Single integration step using Euler method (fast, GPU-friendly)"""
-        y, y_dot = state[0], state[1]
-        t, u, i = inputs[0], inputs[1], inputs[2]
-        
-        # Clamp position to avoid numerical issues
+        y, y_dot, i = state[0], state[1], state[2]
+        u, dt, Tr = inputs[0], inputs[1], inputs[2]
+
         y = jnp.clip(y, 1e-6, 0.05)
-        
-        # Inductance and derivative
+
         L = K0 / (1.0 + y / A)
         dL_dy_val = -K0 / (A * (1.0 + y / A) ** 2)
-        
-        # Magnetic force (always attractive, negative direction)
-        F_mag = 0.5 * i ** 2 * dL_dy_val
-        
-        # Acceleration: m*a = F_mag + m*g (gravity pulls down, F_mag pulls up if dL/dy < 0)
-        # Sign convention: y increases downward (gap increases = falling)
-        # F_mag < 0 (attracts), so a = F_mag/m + g
-        a = F_mag / m + g
-        
-        # Euler integration
+
+        R_t = R0 * (1.0 + alpha * Tr)
+        R_t = jnp.clip(R_t, 0.5, 30.0)
+
+        y_ddot = (0.5 / m) * dL_dy_val * i ** 2 + g
+
+        di_dt = jnp.where(
+            L > 1e-9,
+            (u - dL_dy_val * y_dot * i - R_t * i) / L,
+            0.0,
+        )
+
         y_new = y + y_dot * dt
-        y_dot_new = y_dot + a * dt
-        
-        # Clamp velocity for stability
-        y_dot_new = jnp.clip(y_dot_new, -10.0, 10.0)
-        
-        new_state = jnp.array([y_new, y_dot_new])
-        return new_state, y_new
-    
-    # Stack inputs for scan
-    inputs = jnp.stack([t_data, u_data, i_data], axis=1)
-    
-    # Run simulation using scan (efficient sequential op on GPU)
-    _, y_trajectory = scan(step_fn, state0, inputs)
-    
-    return y_trajectory
+        y_dot_new = jnp.clip(y_dot + y_ddot * dt, -10.0, 10.0)
+        i_new = jnp.clip(i + di_dt * dt, -5.0, 5.0)
+
+        new_state = jnp.array([y_new, y_dot_new, i_new])
+        out = jnp.array([y_new, i_new])
+        return new_state, out
+
+    inputs = jnp.stack([u_data, dt_steps, t_rise], axis=1)
+    _, out_traj = scan(step_fn, state0, inputs)
+
+    y_traj = out_traj[:, 0]
+    i_traj = out_traj[:, 1]
+    return y_traj, i_traj
 
 
-@partial(jit, static_argnums=(6, 7, 8))
+@jit
 def fitness_single(params: jnp.ndarray,
                    t_data: jnp.ndarray,
                    u_data: jnp.ndarray,
@@ -148,28 +150,21 @@ def fitness_single(params: jnp.ndarray,
                    y0: float,
                    m: float,
                    g: float,
-                   dt: float) -> float:
+                   dt_steps: jnp.ndarray,
+                   t_rise: jnp.ndarray) -> float:
     """
     Compute fitness (MSE) for a single parameter set.
     Lower is better.
     """
-    y_sim = simulate_single(params, t_data, u_data, i_data, y0, 0.0, m, g, dt)
-    
-    # MSE between simulated and real position
-    mse = jnp.mean((y_sim - y_real) ** 2)
-    
-    # Add penalty for parameters outside reasonable bounds
-    K0, A, R0, alpha = params[0], params[1], params[2], params[3]
-    
-    penalty = 0.0
-    penalty += jnp.where(K0 < 0.001, 1e6, 0.0)
-    penalty += jnp.where(K0 > 0.15, 1e6, 0.0)
-    penalty += jnp.where(A < 0.0001, 1e6, 0.0)
-    penalty += jnp.where(A > 0.05, 1e6, 0.0)
-    penalty += jnp.where(R0 < 1.0, 1e6, 0.0)
-    penalty += jnp.where(R0 > 5.0, 1e6, 0.0)
-    
-    return mse + penalty
+    i0 = i_data[0]
+    y_sim, i_sim = simulate_single(params, u_data, dt_steps, t_rise, y0, i0, m, g)
+
+    mse_y = jnp.mean((y_sim - y_real) ** 2)
+    mse_i = jnp.mean((i_sim - i_data) ** 2)
+    mse_total = 0.8 * mse_y + 0.2 * mse_i
+
+    bad = jnp.any(jnp.isnan(y_sim)) | jnp.any(jnp.isnan(i_sim))
+    return jnp.where(bad, 1e10, mse_total)
 
 
 def create_vectorized_fitness(t_data: jnp.ndarray,
@@ -190,10 +185,19 @@ def create_vectorized_fitness(t_data: jnp.ndarray,
         Function that takes population [pop_size, 4] and returns fitness [pop_size]
     """
     
-    # Partial application of fixed data
+    del dt
+
+    dt_steps = jnp.diff(t_data, prepend=t_data[0])
+
+    i_sq = i_data ** 2
+    heat_inc = 0.5 * (i_sq + jnp.concatenate([i_sq[:1], i_sq[:-1]], axis=0)) * dt_steps
+    cumulative_heat = jnp.cumsum(heat_inc)
+    heat_final = jnp.maximum(cumulative_heat[-1], 1e-12)
+    t_rise = 20.0 * cumulative_heat / heat_final
+
     @jit
     def fitness_fn(params):
-        return fitness_single(params, t_data, u_data, i_data, y_real, y0, m, g, dt)
+        return fitness_single(params, t_data, u_data, i_data, y_real, y0, m, g, dt_steps, t_rise)
     
     # MAGIC: vmap automatically parallelizes over the population dimension!
     # This is where the GPU acceleration happens.
