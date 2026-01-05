@@ -436,9 +436,13 @@ def run_full_optimization(config_path: str = None):
     
     # Setup benchmark problem
     print("[2/6] Setting up benchmark problem...")
-    if not Path(data_path).exists():
+    if data_path and not Path(data_path).exists():
         print(f"  ✗ Error: Data file not found: {data_path}")
         return None
+    
+    if not data_path:
+        print("  ⚠ No data file specified, using synthetic data")
+        data_path = None
     
     problema = LevitadorBenchmark(
         datos_reales_path=data_path,
