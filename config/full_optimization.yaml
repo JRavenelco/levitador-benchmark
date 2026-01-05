@@ -1,0 +1,104 @@
+# Full Optimization Benchmark Configuration
+# ==========================================
+# Complete benchmark for all metaheuristic algorithms to optimize
+# magnetic levitator parameters with comparison to theoretical values.
+
+# Theoretical reference values (from experiments)
+theoretical_values:
+  k0: 0.0363  # H (Inductance parameter)
+  k: 0.0035   # H (Inductance coefficient)
+  a: 0.0052   # m (Geometric parameter)
+  mse_threshold: 1.0e-7  # Target MSE for convergence
+
+# Benchmark settings
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  n_trials: 5
+  output_dir: "results/optimization_comparison"
+  
+# Common optimization parameters
+optimization:
+  pop_size: 50
+  max_iter: 200
+  random_seed: 42
+  verbose: false
+
+# Algorithm-specific configurations (all enabled)
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+  
+  GreyWolfOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+  
+  ArtificialBeeColony:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    limit: null  # Auto-calculate as pop_size * dim
+    random_seed: 42
+    verbose: false
+  
+  HoneyBadgerAlgorithm:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    beta: 6.0
+    random_seed: 42
+    verbose: false
+  
+  ShrimpOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+  
+  TianjiOptimizer:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+    random_seed: 42
+    verbose: false
+  
+  GeneticAlgorithm:
+    enabled: true
+    pop_size: 50
+    generations: 200
+    crossover_prob: 0.8
+    mutation_prob: 0.2
+    alpha: 0.5
+    random_seed: 42
+    verbose: false
+  
+  RandomSearch:
+    enabled: true
+    n_iterations: 10000  # More iterations to match evaluations
+    random_seed: 42
+    verbose: false
+
+# Visualization settings
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  plot_comparison_table: true
+  save_plots: true
+  dpi: 300
+  
+# Report settings
+report:
+  generate_markdown: true
+  include_statistics: true
+  include_ranking: true
+  compare_with_theoretical: true
