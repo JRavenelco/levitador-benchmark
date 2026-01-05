@@ -112,6 +112,21 @@ pip install numpy scipy pandas matplotlib pyyaml
 pip install torch
 ```
 
+### ⚡ Quick Start - Benchmark Completo
+
+Para ejecutar rápidamente un benchmark completo de todos los algoritmos:
+
+```bash
+# Ejecutar benchmark completo (todos los algoritmos, 5 trials)
+python scripts/run_full_optimization.py
+
+# Ver resultados generados
+ls -l results/optimization_comparison/
+cat results/optimization_comparison/BENCHMARK_REPORT.md
+```
+
+Este script compara automáticamente 8 algoritmos metaheurísticos y genera reportes detallados con visualizaciones. Ver [sección completa](#-benchmark-completo-de-optimización) para más detalles.
+
 ---
 
 ## 🏗️ Arquitectura Modular
@@ -302,6 +317,125 @@ solucion = [0.036, 0.0035, 0.005]  # [k0, k, a]
 error = problema.fitness_function(solucion)
 
 print(f"Error MSE: {error:.6e}")
+```
+
+---
+
+## 🚀 Benchmark Completo de Optimización
+
+### Ejecución Rápida
+
+Para ejecutar un benchmark completo comparando todos los algoritmos metaheurísticos disponibles:
+
+```bash
+# Ejecutar benchmark completo con configuración por defecto
+python scripts/run_full_optimization.py
+
+# Ejecutar con configuración personalizada
+python scripts/run_full_optimization.py --config config/full_optimization.yaml
+
+# Ejecutar con más trials para mejor análisis estadístico
+python scripts/run_full_optimization.py --trials 10
+
+# Ejecutar con semilla diferente para reproducibilidad
+python scripts/run_full_optimization.py --seed 123
+```
+
+### ¿Qué hace este script?
+
+El script `run_full_optimization.py` ejecuta un benchmark exhaustivo que:
+
+1. **Carga datos experimentales** de `data/datos_levitador.txt`
+2. **Ejecuta todos los algoritmos disponibles**:
+   - Differential Evolution (DE)
+   - Grey Wolf Optimizer (GWO)
+   - Artificial Bee Colony (ABC)
+   - Honey Badger Algorithm (HBA)
+   - Shrimp Optimizer (SOA)
+   - Tianji Optimizer (Tianji)
+   - Genetic Algorithm (GA)
+   - Random Search (Random)
+
+3. **Configura cada algoritmo con parámetros optimizados**:
+   - `pop_size`: 50 individuos
+   - `max_iter`: 200 iteraciones
+   - Parámetros específicos bien ajustados
+
+4. **Ejecuta múltiples trials** (default: 5) por algoritmo para estadísticas robustas
+
+5. **Compara con valores teóricos de referencia**:
+   - k₀ = 0.0363 H
+   - k = 0.0035 H
+   - a = 0.0052 m
+
+6. **Genera reportes y visualizaciones**:
+   - 📊 Curvas de convergencia comparativas
+   - 📦 Boxplot de rendimiento
+   - 📋 Tabla de comparación con valores teóricos
+   - 📄 Reporte detallado en markdown (`BENCHMARK_REPORT.md`)
+
+### Resultados Generados
+
+Todos los resultados se guardan en `results/optimization_comparison/`:
+
+```
+results/optimization_comparison/
+├── BENCHMARK_REPORT.md          # Reporte completo en markdown
+├── optimization_results.json     # Resultados en formato JSON
+├── convergence_curves.png        # Curvas de convergencia
+├── performance_boxplot.png       # Boxplot comparativo
+└── comparison_table.png          # Tabla con valores teóricos
+```
+
+### Interpretación de Resultados
+
+El reporte incluye:
+
+1. **Ranking de algoritmos** - Ordenados por mejor MSE obtenido
+2. **Estadísticas detalladas** - Media, desviación estándar, mejor, peor
+3. **Comparación con teóricos** - Errores porcentuales para cada parámetro
+4. **Criterios de éxito**:
+   - ✅ MSE < 1e-7
+   - ✅ Parámetros dentro del 10% de valores teóricos
+
+### Ejemplo de Salida
+
+```
+🏆 BEST ALGORITHM:
+   DE (DifferentialEvolution)
+   MSE: 2.345678e-08
+   k₀ = 0.036234 H  (theoretical: 0.0363)
+   k  = 0.003487 H  (theoretical: 0.0035)
+   a  = 0.005123 m  (theoretical: 0.0052)
+
+✓ SUCCESS CRITERIA:
+   MSE < 1e-07: ✅ PASS
+   Parameters within 10%: ✅ PASS
+```
+
+### Configuración Personalizada
+
+Puedes crear tu propia configuración editando `config/full_optimization.yaml`:
+
+```yaml
+# Ajustar número de trials
+benchmark:
+  n_trials: 10  # Más trials = mejor estadística
+
+# Ajustar parámetros de optimización
+optimization:
+  pop_size: 100    # Más individuos = mejor exploración
+  max_iter: 300    # Más iteraciones = mejor convergencia
+
+# Habilitar/deshabilitar algoritmos
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 50
+    max_iter: 200
+  
+  RandomSearch:
+    enabled: false  # Deshabilitar si no es necesario
 ```
 
 ---
