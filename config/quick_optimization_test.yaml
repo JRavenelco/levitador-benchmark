@@ -1,0 +1,75 @@
+# Quick Test Configuration for Full Optimization Benchmark
+# ========================================================
+# Minimal configuration for quick testing (1 trial, 2 algorithms, few iterations)
+
+# Theoretical reference values
+theoretical_values:
+  k0: 0.0363
+  k: 0.0035
+  a: 0.0052
+  mse_threshold: 1.0e-7
+
+# Benchmark settings
+benchmark:
+  data_path: "data/datos_levitador.txt"
+  random_seed: 42
+  n_trials: 1
+  output_dir: "results/quick_test_optimization"
+  
+# Common optimization parameters (reduced for speed)
+optimization:
+  pop_size: 10
+  max_iter: 20
+  random_seed: 42
+  verbose: false
+
+# Only test with 2 fast algorithms
+algorithms:
+  DifferentialEvolution:
+    enabled: true
+    pop_size: 10
+    max_iter: 20
+    F: 0.8
+    CR: 0.9
+    random_seed: 42
+    verbose: false
+  
+  RandomSearch:
+    enabled: true
+    n_iterations: 200
+    random_seed: 42
+    verbose: false
+
+  # Disable others for quick test
+  GreyWolfOptimizer:
+    enabled: false
+  
+  ArtificialBeeColony:
+    enabled: false
+  
+  HoneyBadgerAlgorithm:
+    enabled: false
+  
+  ShrimpOptimizer:
+    enabled: false
+  
+  TianjiOptimizer:
+    enabled: false
+  
+  GeneticAlgorithm:
+    enabled: false
+
+# Visualization settings
+visualization:
+  plot_convergence: true
+  plot_boxplot: true
+  plot_comparison_table: true
+  save_plots: true
+  dpi: 150
+  
+# Report settings
+report:
+  generate_markdown: true
+  include_statistics: true
+  include_ranking: true
+  compare_with_theoretical: true
