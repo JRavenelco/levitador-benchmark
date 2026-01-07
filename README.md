@@ -541,7 +541,7 @@ El reporte incluye:
 | Convergencia muy lenta | Parámetros conservadores | Ajustar F, CR (DE) o tasas de mutación |
 | Resultados inconsistentes | Sensibilidad a ruido en datos | Aumentar `smoothing_window`, validar datos |
 | Parámetros fuera de rango físico | Bounds incorrectos | Revisar límites en configuración |
-| Simulación falla (fitness = 1e10) | Parámetros causan inestabilidad numérica | Ajustar tolerancias ODE, revidar bounds |
+| Simulación falla (fitness = 1e10) | Parámetros causan inestabilidad numérica | Ajustar tolerancias ODE, revisar bounds |
 
 **Visualizaciones Generadas:**
 
