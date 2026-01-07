@@ -64,8 +64,12 @@ R(t) = R0 + α·t
 1. **`energy_balance`**: Balance de potencia + Newton + Kirchhoff (para identificar masa)
 2. **`pinn_mejorado`**: Normalización por varianza + "Juez de Hierro" (fuerza = peso)
 
-**Dataset:**
-- `mega_controlled_dataset.txt`: 19,534 muestras de levitación controlada (12 fuentes)
+**Datasets Disponibles:**
+- `datos_levitador.txt`: Dataset original para identificación de parámetros (usado por defecto en scripts)
+- `mega_controlled_dataset.txt`: **Dataset unificado con 19,534 muestras** de levitación controlada procedentes de 12 fuentes experimentales diferentes. Este dataset consolidado es ideal para:
+  - **Fase 1**: Identificación robusta de parámetros físicos con mayor diversidad de datos
+  - **Fase 2**: Pre-entrenamiento de KAN-PINN con datos controlados
+  - Validación cruzada entre múltiples sesiones experimentales
 
 **Notebook Colab:** `KAN_PINN_JAX_GPU_Optimization.ipynb` (9 metaheurísticos en JAX/GPU)
 
@@ -115,6 +119,11 @@ Los algoritmos metaheurísticos exploran el espacio de parámetros de forma inte
 
 **Objetivo:** Entrenar una red neuronal KAN (Kolmogorov-Arnold Network) informada por física para estimar la posición sin sensor directo.
 
+**Datasets para Entrenamiento:**
+- **Opción 1 (Recomendado):** Usar `mega_controlled_dataset.txt` para pre-entrenamiento con 19,534 muestras controladas
+- **Opción 2:** Usar datasets específicos en `data/sesiones_kan_pinn/` para entrenamiento dirigido
+- **Mejor práctica:** Pre-entrenar con `mega_controlled_dataset.txt` y afinar con sesiones específicas
+
 **Arquitectura de dos etapas:**
 
 1. **Etapa 1 - Observador de Flujo:**
@@ -132,6 +141,7 @@ Los algoritmos metaheurísticos exploran el espacio de parámetros de forma inte
 - KAN con B-splines y conexiones residuales
 - Curriculum learning para peso PINN
 - Sin data leakage entre etapas
+- Flexible para entrenar con diferentes datasets experimentales
 
 ---
 
@@ -163,8 +173,17 @@ pip install torch
 Para ejecutar rápidamente un benchmark completo de todos los algoritmos:
 
 ```bash
-# Ejecutar benchmark completo (todos los algoritmos, 5 trials)
+# Ejecutar benchmark completo con dataset por defecto (8 algoritmos, 5 trials)
 python scripts/run_full_optimization.py
+
+# Ejecutar con más trials para mejor análisis estadístico
+python scripts/run_full_optimization.py --trials 10 --seed 42
+
+# Para usar mega_controlled_dataset.txt, usar optimize_parameters.py
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC HBA SOA Tianji GA RandomSearch \
+    --trials 10
 
 # Ver resultados generados
 ls -l results/optimization_comparison/
@@ -172,6 +191,24 @@ cat results/optimization_comparison/BENCHMARK_REPORT.md
 ```
 
 Este script compara automáticamente 8 algoritmos metaheurísticos y genera reportes detallados con visualizaciones. Ver [sección completa](#-benchmark-completo-de-optimización) para más detalles.
+
+### 🎯 Quick Start - Pipeline Completo de Dos Fases
+
+Para ejecutar el pipeline completo de identificación + entrenamiento:
+
+```bash
+# Ejecutar pipeline completo (Fase 1: Identificación → Fase 2: KAN-PINN)
+python scripts/pipeline_identificacion_kanpinn.py --config config/pipeline_config.yaml
+
+# Solo Fase 1: Identificación con mega_controlled_dataset
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC --trials 10
+
+# Solo Fase 2: Entrenamiento KAN-PINN con parámetros identificados
+python scripts/pipeline_identificacion_kanpinn.py --phase2-only \
+    --use-params results/parameter_identification/parametros_optimos.json
+```
 
 ---
 
@@ -181,49 +218,148 @@ El repositorio incluye un framework modular completo para el pipeline de dos fas
 
 ```
 levitador-benchmark/
-├── src/
-│   ├── benchmarks/             # Benchmarks de optimización
-│   │   ├── parameter_benchmark.py   # Fase 1: Identificación de parámetros
-│   │   └── kanpinn_benchmark.py     # Fase 2: Hyperparams KAN-PINN
-│   ├── kan_pinn/               # Módulo KAN-PINN (requiere PyTorch)
-│   │   ├── hippo_layer.py      # Capa HiPPO-LegS
-│   │   ├── kan_layer.py        # Capa KAN con B-splines
-│   │   ├── flux_observer.py    # Etapa 1: Observador de flujo
-│   │   ├── position_predictor.py  # Etapa 2: Predictor de posición
-│   │   ├── physics_loss.py     # Pérdidas físicas
-│   │   └── trainer.py          # Entrenador con curriculum learning
-│   ├── optimization/           # Algoritmos de optimización
-│   │   ├── base_optimizer.py   # Clase base abstracta
-│   │   ├── random_search.py
-│   │   ├── differential_evolution.py
-│   │   ├── genetic_algorithm.py
-│   │   ├── grey_wolf_optimizer.py
-│   │   ├── artificial_bee_colony.py
-│   │   ├── honey_badger.py
-│   │   ├── shrimp_optimizer.py
-│   │   └── tianji_optimizer.py
-│   ├── visualization/          # Utilidades de visualización
-│   │   ├── convergence_plot.py
-│   │   └── comparison_plots.py
-│   └── utils/                  # Utilidades generales
-│       └── config_loader.py
-├── config/                     # Configuraciones YAML
-│   ├── pipeline_config.yaml    # Pipeline completo (Fase 1 + 2)
-│   ├── kanpinn_default.yaml    # Config KAN-PINN
-│   ├── default.yaml            # Config optimización estándar
-│   ├── quick_test.yaml
-│   └── full_comparison.yaml
-├── scripts/
-│   ├── optimize_parameters.py  # Script Fase 1
-│   ├── train_kanpinn.py        # Script Fase 2
-│   ├── pipeline_identificacion_kanpinn.py  # Orquestador completo
-│   └── run_benchmark.py        # Benchmark original
+├── src/                            # Código fuente modular
+│   ├── benchmarks/                 # Benchmarks de optimización
+│   │   ├── __init__.py
+│   │   ├── parameter_benchmark.py  # Fase 1: Identificación de parámetros
+│   │   └── kanpinn_benchmark.py    # Fase 2: Hyperparams KAN-PINN
+│   ├── kan_pinn/                   # Módulo KAN-PINN (requiere PyTorch)
+│   │   ├── __init__.py             # Detección de PyTorch e importaciones
+│   │   ├── hippo_layer.py          # Capa HiPPO-LegS para captura temporal
+│   │   ├── kan_layer.py            # Capa KAN con B-splines
+│   │   ├── flux_observer.py        # Etapa 1: Observador de flujo
+│   │   ├── position_predictor.py   # Etapa 2: Predictor de posición
+│   │   ├── physics_loss.py         # Pérdidas físicas (Kirchhoff, PINN)
+│   │   └── trainer.py              # Entrenador con curriculum learning
+│   ├── optimization/               # Algoritmos de optimización metaheurística
+│   │   ├── __init__.py
+│   │   ├── base_optimizer.py       # Clase base abstracta
+│   │   ├── random_search.py        # Búsqueda aleatoria (baseline)
+│   │   ├── differential_evolution.py  # Evolución Diferencial
+│   │   ├── genetic_algorithm.py    # Algoritmo Genético
+│   │   ├── grey_wolf_optimizer.py  # Grey Wolf Optimizer
+│   │   ├── artificial_bee_colony.py  # Artificial Bee Colony
+│   │   ├── honey_badger.py         # Honey Badger Algorithm
+│   │   ├── shrimp_optimizer.py     # Shrimp Optimizer
+│   │   └── tianji_optimizer.py     # Tianji Optimizer
+│   ├── models/                     # Modelos físicos del sistema
+│   │   └── __init__.py
+│   ├── data/                       # Utilidades de manejo de datos
+│   │   └── __init__.py
+│   ├── jax_backend/                # Backend JAX para GPU (opcional)
+│   │   └── __init__.py
+│   ├── visualization/              # Utilidades de visualización
+│   │   ├── __init__.py
+│   │   ├── convergence_plot.py     # Gráficas de convergencia
+│   │   └── comparison_plots.py     # Gráficas comparativas
+│   └── utils/                      # Utilidades generales
+│       ├── __init__.py
+│       └── config_loader.py        # Cargador de configuraciones YAML
+├── config/                         # Configuraciones YAML
+│   ├── pipeline_config.yaml        # Pipeline completo (Fase 1 + 2)
+│   ├── kanpinn_default.yaml        # Config KAN-PINN detallada
+│   ├── default.yaml                # Config optimización estándar
+│   ├── quick_test.yaml             # Config pruebas rápidas
+│   ├── quick_optimization_test.yaml  # Optimización rápida
+│   ├── full_comparison.yaml        # Comparación completa
+│   ├── full_optimization.yaml      # Optimización exhaustiva
+│   └── parallel_test.yaml          # Pruebas paralelas
+├── scripts/                        # Scripts ejecutables
+│   ├── optimize_parameters.py      # Script Fase 1: Identificación
+│   ├── train_kanpinn.py            # Script Fase 2: Entrenamiento KAN-PINN
+│   ├── pipeline_identificacion_kanpinn.py  # Orquestador pipeline completo
+│   ├── run_benchmark.py            # Benchmark original (3 parámetros)
+│   ├── run_full_optimization.py    # Benchmark completo (8 algoritmos)
+│   ├── prepare_calibration_data.py # Preparación de datos de calibración
+│   ├── convert_kan_data.py         # Conversión de datos para KAN
+│   ├── analyze_kan_csv.py          # Análisis de resultados KAN
+│   └── benchmark_jax.py            # Benchmark con JAX/GPU
+├── data/                           # Datos experimentales
+│   ├── datos_levitador.txt         # Dataset original
+│   ├── mega_controlled_dataset.txt # Dataset unificado (19,534 muestras)
+│   ├── datos_levitador_20251024_162706.txt  # Sesión específica
+│   ├── datos_zonas_faltantes.txt   # Datos de zonas específicas
+│   ├── kan_validation_data.txt     # Datos de validación KAN
+│   ├── MONIT_MAESTRO.txt           # Monitoreo maestro
+│   ├── MONIT_SWEEP.txt             # Monitoreo sweep
+│   └── sesiones_kan_pinn/          # Sesiones para entrenamiento KAN-PINN
+│       ├── dataset_constante_*.txt
+│       ├── dataset_escalon_*.txt
+│       ├── dataset_senoidal_*.txt
+│       ├── dataset_chirp_*.txt
+│       └── dataset_multiescalon_*.txt
+├── examples/                       # Ejemplos de uso
+│   ├── README.md                   # Documentación de ejemplos
+│   ├── example_de.py               # Ejemplo Differential Evolution
+│   ├── example_ga.py               # Ejemplo Genetic Algorithm
+│   └── example_pso.py              # Ejemplo Particle Swarm
+├── notebooks/                      # Notebooks Jupyter
+│   └── parameter_identification_demo.ipynb  # Demo interactiva
+├── docs/                           # Documentación adicional
+│   ├── formato_datos.md            # Formato de archivos de datos
+│   └── DOE_experimentos.md         # Diseño de experimentos
+├── tests/                          # Tests unitarios
+│   └── test_benchmark.py           # Tests del benchmark
+├── videos/                         # Videos explicativos
+│   ├── 01_problema_fisico.mp4
+│   ├── 02_funcion_fitness.mp4
+│   └── 03_como_optimizar.mp4
+├── .github/                        # Configuración GitHub
+│   └── agents/                     # Agentes de GitHub
+├── README.md                       # Este archivo - Documentación principal
+├── PIPELINE_SUMMARY.md             # Resumen del pipeline de dos fases
+├── COLAB_NOTEBOOK_INSTRUCTIONS.md  # Instrucciones para Google Colab
+├── CITATION.cff                    # Información de citación
+├── LICENSE                         # Licencia MIT
+├── requirements.txt                # Dependencias Python
+├── .gitignore                      # Archivos ignorados por git
+├── levitador_benchmark.py          # Clase benchmark original (3 parámetros)
+├── example_optimization.py         # Algoritmos originales
+├── adquisicion_datos.py            # Script adquisición de datos
+├── experimentos_doe.py             # Script diseño de experimentos
+├── tutorial_metaheuristicas.ipynb  # Tutorial interactivo
+├── KAN_PINN_JAX_GPU_Optimization.ipynb  # Notebook JAX/GPU
+└── KAN_SENSORLESS_REAL.ipynb       # Notebook KAN-PINN completo
+```
 ├── data/
 │   ├── datos_levitador.txt     # Datos experimentales
 │   └── sesiones_kan_pinn/      # Datasets para KAN-PINN
 └── notebooks/
     └── KAN_SENSORLESS_REAL.ipynb  # Demo KAN-PINN
 ```
+
+### Descripción de Directorios Clave
+
+**`src/` - Código fuente modular:**
+- **`benchmarks/`**: Problemas de optimización (Fase 1 y 2)
+- **`kan_pinn/`**: Implementación de redes KAN-PINN para observación sensorless
+- **`optimization/`**: 8 algoritmos metaheurísticos implementados
+- **`visualization/`**: Herramientas para gráficas y análisis visual
+- **`utils/`**: Utilidades generales (carga de config, helpers)
+- **`models/`**, **`data/`**, **`jax_backend/`**: Módulos auxiliares
+
+**`config/` - Configuraciones YAML:**
+- Configuraciones pre-definidas para diferentes escenarios
+- Parámetros de algoritmos, entrenamiento, y pipeline completo
+
+**`scripts/` - Scripts ejecutables:**
+- Scripts CLI para Fase 1, Fase 2, y pipeline completo
+- Herramientas de análisis y preparación de datos
+
+**`data/` - Datasets experimentales:**
+- `mega_controlled_dataset.txt`: **Dataset principal unificado (19,534 muestras)**
+- `datos_levitador.txt`: Dataset original
+- `sesiones_kan_pinn/`: Datasets específicos para entrenamiento KAN-PINN
+
+**`examples/` - Ejemplos de uso:**
+- Ejemplos standalone para cada algoritmo de optimización
+
+**`notebooks/` - Notebooks interactivos:**
+- Tutoriales paso a paso y demostraciones
+
+**`docs/` - Documentación:**
+- Especificaciones de formato de datos
+- Diseño de experimentos (DOE)
 
 ### Algoritmos Disponibles
 
@@ -279,18 +415,31 @@ python scripts/pipeline_identificacion_kanpinn.py --phase2-only \
 ### Fase 1: Identificación de Parámetros
 
 ```bash
-# Ejecución con configuración completa
+# Ejecución con configuración completa (usa datos_levitador.txt por defecto)
 python scripts/optimize_parameters.py --config config/pipeline_config.yaml
+
+# Usar el mega_controlled_dataset.txt para identificación con mayor diversidad
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC \
+    --trials 5
 
 # Ejecución rápida con algoritmos específicos
 python scripts/optimize_parameters.py --algorithms DE GWO ABC --trials 10
 
-# Ejecución personalizada
+# Ejecución personalizada con dataset específico
 python scripts/optimize_parameters.py \
     --data data/datos_levitador.txt \
     --algorithms DE GWO HBA SOA Tianji GA RandomSearch \
     --trials 5 \
     --output results/my_optimization
+
+# Benchmark completo con mega_controlled_dataset (19,534 muestras)
+# Usar optimize_parameters.py con todos los algoritmos
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC HBA SOA Tianji GA RandomSearch \
+    --trials 10
 ```
 
 **Salidas generadas:**
@@ -303,10 +452,16 @@ python scripts/optimize_parameters.py \
 ### Fase 2: Entrenamiento KAN-PINN
 
 ```bash
-# Entrenar con configuración por defecto
+# Entrenar con configuración por defecto (usa sesiones específicas)
 python scripts/train_kanpinn.py --config config/kanpinn_default.yaml
 
-# Usar parámetros de Fase 1
+# Pre-entrenar con mega_controlled_dataset.txt (recomendado para mayor robustez)
+python scripts/train_kanpinn.py \
+    --config config/kanpinn_default.yaml \
+    --data data/mega_controlled_dataset.txt \
+    --use-params results/parameter_identification/parametros_optimos.json
+
+# Usar parámetros de Fase 1 con datasets específicos
 python scripts/train_kanpinn.py \
     --config config/kanpinn_default.yaml \
     --use-params results/parameter_identification/parametros_optimos.json
@@ -314,9 +469,101 @@ python scripts/train_kanpinn.py \
 # Entrenar solo una etapa
 python scripts/train_kanpinn.py --stage 1  # Solo observador de flujo
 python scripts/train_kanpinn.py --stage 2  # Solo predictor de posición
+
+# Pipeline completo: Pre-entrenamiento + Fine-tuning
+# 1. Pre-entrenar con mega_controlled_dataset
+python scripts/train_kanpinn.py \
+    --data data/mega_controlled_dataset.txt \
+    --output results/pretrain \
+    --use-params results/parameter_identification/parametros_optimos.json
+
+# 2. Fine-tuning con sesiones específicas
+python scripts/train_kanpinn.py \
+    --config config/kanpinn_default.yaml \
+    --load-checkpoint results/pretrain/model_best.pt \
+    --use-params results/parameter_identification/parametros_optimos.json
 ```
 
 **Nota:** Fase 2 requiere PyTorch. La implementación completa está basada en el notebook `KAN_SENSORLESS_REAL.ipynb`.
+
+### 📊 Datasets Disponibles
+
+El repositorio incluye múltiples datasets experimentales para diferentes propósitos:
+
+#### Dataset Principal: `mega_controlled_dataset.txt`
+
+**Descripción:** Dataset unificado consolidado con **19,534 muestras** de levitación controlada procedentes de 12 fuentes experimentales diferentes.
+
+**Características:**
+- **Tamaño:** 19,534 muestras temporales
+- **Fuentes:** 12 sesiones experimentales independientes
+- **Variables:** tiempo (t), posición (y), corriente (i), voltaje (u), velocidad (dy/dt)
+- **Formato:** Columnas separadas por tabuladores
+- **Condiciones:** Múltiples puntos de operación y señales de referencia
+
+**Uso recomendado:**
+```bash
+# Fase 1: Identificación de parámetros con máxima diversidad
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC --trials 10
+
+# Fase 2: Pre-entrenamiento KAN-PINN
+python scripts/train_kanpinn.py \
+    --data data/mega_controlled_dataset.txt \
+    --use-params results/parameter_identification/parametros_optimos.json
+```
+
+**Ventajas:**
+- ✅ Mayor diversidad de condiciones experimentales
+- ✅ Identificación más robusta de parámetros
+- ✅ Mejor generalización del observador KAN-PINN
+- ✅ Validación cruzada entre múltiples sesiones
+
+#### Otros Datasets
+
+| Dataset | Muestras | Propósito |
+|---------|----------|-----------|
+| `datos_levitador.txt` | ~4,500 | Dataset original, usado por defecto en configuraciones |
+| `datos_levitador_20251024_162706.txt` | Variable | Sesión experimental específica |
+| `kan_validation_data.txt` | Variable | Validación específica para KAN-PINN |
+| `datos_zonas_faltantes.txt` | Variable | Análisis de zonas específicas |
+| `MONIT_MAESTRO.txt` | Variable | Monitoreo de experimentos maestros |
+| `MONIT_SWEEP.txt` | Variable | Barrido de condiciones |
+
+#### Sesiones KAN-PINN (`data/sesiones_kan_pinn/`)
+
+Datasets específicos para entrenamiento de observador neuronal:
+
+- `dataset_constante_*.txt` - Referencia constante
+- `dataset_escalon_*.txt` - Respuesta a escalones
+- `dataset_senoidal_*.txt` - Seguimiento senoidal
+- `dataset_chirp_*.txt` - Señal chirp (frecuencia variable)
+- `dataset_multiescalon_*.txt` - Múltiples escalones
+
+**Uso en Fase 2:**
+```python
+# Configurar en config/pipeline_config.yaml
+kanpinn:
+  data:
+    train_paths:
+      - "data/sesiones_kan_pinn/dataset_constante_20251217_205611.txt"
+      - "data/sesiones_kan_pinn/dataset_escalon_20251217_205858.txt"
+      - "data/sesiones_kan_pinn/dataset_senoidal_20251217_205952.txt"
+    val_paths:
+      - "data/sesiones_kan_pinn/dataset_chirp_20251217_210058.txt"
+```
+
+#### Formato de Datos
+
+Todos los archivos de datos siguen el formato estándar (ver `docs/formato_datos.md`):
+
+```
+tiempo[s]  posicion[m]  corriente[A]  voltaje[V]  velocidad[m/s]
+0.000000   0.004500     0.008800      0.594200    0.737600
+0.010000   0.004500     0.007100      0.414700    0.399900
+...
+```
 
 ### Python API - Fase 1
 
@@ -324,19 +571,27 @@ python scripts/train_kanpinn.py --stage 2  # Solo predictor de posición
 from src.benchmarks import ParameterBenchmark
 from src.optimization import DifferentialEvolution, GreyWolfOptimizer
 
-# Crear problema de identificación de parámetros
+# Opción 1: Usar dataset original
 problema = ParameterBenchmark(
     data_path='data/datos_levitador.txt',
     subsample_factor=20,  # Submuestreo para velocidad
     verbose=True
 )
 
-print(f"Optimizing {problema.dim} parameters: {problema.variable_names}")
-print(f"Bounds: {problema.bounds}")
+# Opción 2: Usar mega_controlled_dataset para mayor robustez (recomendado)
+problema_mega = ParameterBenchmark(
+    data_path='data/mega_controlled_dataset.txt',
+    subsample_factor=50,  # Mayor submuestreo por el tamaño (19,534 muestras)
+    verbose=True
+)
+
+print(f"Optimizing {problema_mega.dim} parameters: {problema_mega.variable_names}")
+print(f"Bounds: {problema_mega.bounds}")
+print(f"Dataset size: {len(problema_mega.t)} samples")
 
 # Usar Differential Evolution
 de = DifferentialEvolution(
-    problema,
+    problema_mega,  # Usar dataset grande
     pop_size=30,
     max_iter=100,
     F=0.8,
@@ -350,10 +605,10 @@ print(f"Best parameters: K0={best_sol[0]:.6f}, A={best_sol[1]:.6f}, "
 print(f"Best fitness: {best_fitness:.6e}")
 
 # Visualizar solución
-problema.visualize_solution(best_sol, save_path='results/solution.png')
+problema_mega.visualize_solution(best_sol, save_path='results/solution.png')
 
 # Estimar curva de resistencia
-R_curve = problema.estimate_resistance_curve(best_sol[0], best_sol[1])
+R_curve = problema_mega.estimate_resistance_curve(best_sol[0], best_sol[1])
 print(f"R(t) range: [{R_curve.min():.3f}, {R_curve.max():.3f}] Ω")
 ```
 
@@ -1033,27 +1288,42 @@ problema.visualize_solution(mejor_solucion, save_path="resultado.png")
 
 ---
 
-## 📁 Estructura del Repositorio
+## 📁 Estructura del Repositorio (Simplificada)
+
+Para una vista simplificada de la estructura del repositorio:
 
 ```
 levitador-benchmark/
-├── README.md                    # Este archivo
+├── README.md                    # Este archivo - Documentación principal
+├── PIPELINE_SUMMARY.md          # Resumen del pipeline de dos fases
 ├── LICENSE                      # Licencia MIT
 ├── requirements.txt             # Dependencias del proyecto
-├── levitador_benchmark.py       # Clase principal del benchmark
+├── levitador_benchmark.py       # Clase benchmark original (3 parámetros)
 ├── example_optimization.py      # Ejemplos de algoritmos
 ├── tutorial_metaheuristicas.ipynb  # Notebook tutorial interactivo
-├── data/
-│   └── datos_levitador.txt      # Datos experimentales reales
-├── docs/
-│   └── formato_datos.md         # Descripción del formato de datos
-├── tests/
-│   └── test_benchmark.py        # Tests unitarios (pytest)
+├── KAN_PINN_JAX_GPU_Optimization.ipynb  # Notebook JAX/GPU
+├── KAN_SENSORLESS_REAL.ipynb    # Notebook KAN-PINN completo
+├── src/                         # Código fuente modular (ver sección Arquitectura)
+├── config/                      # Configuraciones YAML
+├── scripts/                     # Scripts ejecutables
+├── data/                        # Datos experimentales
+│   ├── datos_levitador.txt      # Dataset original (~4,500 muestras)
+│   ├── mega_controlled_dataset.txt  # Dataset unificado (19,534 muestras)
+│   └── sesiones_kan_pinn/       # Datasets para KAN-PINN
+├── examples/                    # Ejemplos de uso
+├── notebooks/                   # Notebooks Jupyter
+├── docs/                        # Documentación adicional
+│   ├── formato_datos.md         # Descripción del formato de datos
+│   └── DOE_experimentos.md      # Diseño de experimentos
+├── tests/                       # Tests unitarios (pytest)
+│   └── test_benchmark.py
 └── videos/                      # Videos explicativos
     ├── 01_problema_fisico.mp4
     ├── 02_funcion_fitness.mp4
     └── 03_como_optimizar.mp4
 ```
+
+**Ver la sección [🏗️ Arquitectura Modular](#-arquitectura-modular) para una descripción detallada y completa de todos los directorios y archivos.**
 
 ---
 
