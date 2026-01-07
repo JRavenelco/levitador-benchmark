@@ -69,6 +69,48 @@ R(t) = R0 + α·t
 
 **Notebook Colab:** `KAN_PINN_JAX_GPU_Optimization.ipynb` (9 metaheurísticos en JAX/GPU)
 
+**Función de Fitness:**
+
+La función objetivo minimiza el error cuadrático medio (MSE) entre las trayectorias simuladas y reales:
+
+```python
+MSE_total = 0.8 * MSE_posición + 0.2 * MSE_corriente
+```
+
+Características del fitness:
+- **Simulación dinámica**: Integra las ecuaciones diferenciales del sistema con los parámetros candidatos
+- **Ponderación balanceada**: Prioriza el ajuste de posición (80%) sobre corriente (20%)
+- **Suavizado adaptativo**: Aplica filtros Savitzky-Golay para reducir ruido experimental
+- **Submuestreo configurable**: Acelera la optimización 10-50x sin pérdida significativa de precisión
+- **Detección de fallos**: Retorna penalización alta (1e10) si la simulación diverge o viola restricciones físicas
+
+**Métodos de Optimización (Metaheurísticas):**
+
+Los algoritmos metaheurísticos exploran el espacio de parámetros de forma inteligente:
+
+1. **Evolución Diferencial (DE)**: Usa vectores diferencia entre miembros de la población para generar nuevos candidatos. Excelente balance exploración-explotación.
+
+2. **Grey Wolf Optimizer (GWO)**: Simula la jerarquía de caza de lobos grises con líderes alfa, beta y delta guiando la búsqueda.
+
+3. **Artificial Bee Colony (ABC)**: Inspirado en el comportamiento de abejas melíferas. Divide la población en exploradoras, trabajadoras y observadoras.
+
+4. **Algoritmo Honey Badger (HBA)**: Modela el comportamiento de búsqueda del tejón de miel, alternando entre excavación intensa y exploración.
+
+5. **Shrimp Optimizer (SOA)**: Basado en el comportamiento adaptativo de camarones en diferentes condiciones ambientales.
+
+6. **Tianji Optimizer**: Inspirado en la estrategia china antigua de carreras de caballos, enfocado en aprovechar ventajas locales.
+
+7. **Algoritmo Genético (GA)**: Evolución artificial con selección por torneo, cruce BLX-α y mutación gaussiana.
+
+8. **Random Search**: Búsqueda aleatoria como baseline de comparación.
+
+**Características Avanzadas:**
+
+- **Evaluación en paralelo**: Usa múltiples núcleos CPU para evaluar poblaciones
+- **Múltiples trials**: Ejecuta cada algoritmo varias veces para análisis estadístico robusto
+- **Diagnóstico de residuales**: Analiza la calidad del ajuste mediante residuales de posición y corriente
+- **Comparación automática**: Genera reportes comparativos con valores teóricos de referencia
+
 ### Fase 2: Entrenamiento KAN-PINN (Observador Sensorless)
 
 **Objetivo:** Entrenar una red neuronal KAN (Kolmogorov-Arnold Network) informada por física para estimar la posición sin sensor directo.
@@ -184,27 +226,36 @@ levitador-benchmark/
 ```
 
 ### Algoritmos Disponibles
-│   ├── default.yaml
-│   ├── quick_test.yaml
-│   └── full_comparison.yaml
-├── scripts/
-│   └── run_benchmark.py       # Script principal de benchmark
-└── notebooks/
-    └── parameter_identification_demo.ipynb
-```
 
-### Algoritmos Disponibles
+Los siguientes algoritmos metaheurísticos están implementados y optimizados para la identificación de parámetros:
 
-| Algoritmo | Clase | Referencia |
-|-----------|-------|------------|
-| **Random Search** | `RandomSearch` | Baseline algorithm |
-| **Differential Evolution** | `DifferentialEvolution` | Storn & Price (1997) |
-| **Genetic Algorithm** | `GeneticAlgorithm` | Holland (1975) |
-| **Grey Wolf Optimizer** | `GreyWolfOptimizer` | Mirjalili et al. (2014) |
-| **Artificial Bee Colony** | `ArtificialBeeColony` | Karaboga (2005) |
-| **Honey Badger Algorithm** | `HoneyBadgerAlgorithm` | Hashim et al. (2022) |
-| **Shrimp Optimizer** | `ShrimpOptimizer` | Novel algorithm |
-| **Tianji Horse Racing** | `TianjiOptimizer` | Ancient Chinese strategy |
+| Algoritmo | Clase | Referencia | Características Clave |
+|-----------|-------|------------|----------------------|
+| **Differential Evolution** | `DifferentialEvolution` | Storn & Price (1997) | Mutación basada en diferencias vectoriales, excelente para espacios continuos |
+| **Grey Wolf Optimizer** | `GreyWolfOptimizer` | Mirjalili et al. (2014) | Jerarquía de liderazgo, balance exploración-explotación |
+| **Artificial Bee Colony** | `ArtificialBeeColony` | Karaboga (2005) | Múltiples roles (exploradoras, trabajadoras, observadoras) |
+| **Honey Badger Algorithm** | `HoneyBadgerAlgorithm` | Hashim et al. (2022) | Búsqueda adaptativa con alternancia excavación/exploración |
+| **Shrimp Optimizer** | `ShrimpOptimizer` | Novel algorithm | Comportamiento adaptativo multi-fase |
+| **Tianji Horse Racing** | `TianjiOptimizer` | Ancient Chinese strategy | Estrategia de aprovechamiento de ventajas locales |
+| **Genetic Algorithm** | `GeneticAlgorithm` | Holland (1975) | Selección por torneo, cruce BLX-α, mutación gaussiana |
+| **Random Search** | `RandomSearch` | Baseline algorithm | Búsqueda aleatoria uniforme (referencia de comparación) |
+
+**Notas de Implementación:**
+
+Todos los algoritmos comparten la interfaz común `BaseOptimizer` que proporciona:
+- Gestión automática de límites (bounds enforcement)
+- Registro de historial de convergencia
+- Contador de evaluaciones de fitness
+- Soporte para semillas aleatorias (reproducibilidad)
+- Modo verbose para depuración
+
+**Recomendaciones de Uso:**
+
+- **Para convergencia rápida**: Differential Evolution (DE) o Grey Wolf Optimizer (GWO)
+- **Para robustez**: Artificial Bee Colony (ABC) o Honey Badger (HBA)  
+- **Para exploración exhaustiva**: Usar múltiples algoritmos y comparar resultados
+- **Para problemas de alta dimensionalidad**: DE o SOA
+- **Para baseline/comparación**: Random Search
 
 
 ---
@@ -305,6 +356,51 @@ problema.visualize_solution(best_sol, save_path='results/solution.png')
 R_curve = problema.estimate_resistance_curve(best_sol[0], best_sol[1])
 print(f"R(t) range: [{R_curve.min():.3f}, {R_curve.max():.3f}] Ω")
 ```
+
+### Entendiendo el Proceso de Optimización Metaheurística
+
+**¿Cómo funcionan los metaheurísticos en este problema?**
+
+1. **Inicialización**: Cada algoritmo crea una población de soluciones candidatas `θ = [K0, A, R0, α]` dentro de los límites físicos definidos.
+
+2. **Evaluación**: Para cada candidato:
+   - Se simula el sistema dinámico completo usando las EDOs
+   - Se compara la trayectoria simulada con los datos experimentales
+   - Se calcula el MSE como medida de calidad (fitness)
+
+3. **Evolución/Búsqueda**: Los algoritmos usan diferentes estrategias bio-inspiradas:
+   - **DE**: Combina vectores diferencia para generar mutantes
+   - **GWO**: Sigue a los mejores "lobos" (soluciones) del grupo
+   - **ABC**: Abejas exploradoras buscan nuevas fuentes de alimento (soluciones)
+   - **Otros**: Cada algoritmo implementa su propia metáfora de búsqueda
+
+4. **Convergencia**: El proceso se repite hasta:
+   - Alcanzar un MSE suficientemente bajo (< 1e-7)
+   - Completar el número máximo de iteraciones
+   - Detectar estancamiento (sin mejora significativa)
+
+**Ejemplo de Salida de Convergencia:**
+
+```
+Iteration 10/100: Best fitness = 3.45e-06
+Iteration 20/100: Best fitness = 1.23e-06  
+Iteration 30/100: Best fitness = 4.56e-07
+Iteration 40/100: Best fitness = 2.31e-07
+Iteration 50/100: Best fitness = 8.92e-08  ✓ Target reached!
+
+Final parameters:
+  K0 = 0.036234 H   (theoretical: 0.0363)
+  A  = 0.005123 m   (theoretical: 0.0052)
+  R0 = 2.718 Ω      (estimated)
+  α  = 0.00387 /°C  (estimated)
+```
+
+**Ventajas de Usar Múltiples Algoritmos:**
+
+- Diferentes algoritmos tienen fortalezas en diferentes regiones del espacio de búsqueda
+- La comparación permite identificar el método más robusto para este problema específico
+- Los resultados estadísticos (media, desviación) revelan la estabilidad del algoritmo
+- El análisis de convergencia muestra qué algoritmos requieren más evaluaciones
 
 ### Python API - Compatibilidad con Benchmark Original
 
@@ -416,6 +512,54 @@ El reporte incluye:
    MSE < 1e-07: ✅ PASS
    Parameters within 10%: ✅ PASS
 ```
+
+### Interpretación de Resultados de Metaheurísticos
+
+**Métricas Clave:**
+
+1. **MSE (Mean Squared Error)**: Medida principal de calidad del ajuste
+   - Excelente: MSE < 1e-7
+   - Bueno: 1e-7 < MSE < 1e-6
+   - Aceptable: 1e-6 < MSE < 1e-5
+   - Requiere ajuste: MSE > 1e-5
+
+2. **Convergencia**: Iteraciones necesarias para alcanzar el óptimo
+   - Convergencia rápida: < 30 iteraciones
+   - Convergencia normal: 30-80 iteraciones
+   - Convergencia lenta: > 80 iteraciones
+
+3. **Robustez**: Consistencia entre múltiples trials
+   - Desviación estándar baja (< 10% de la media) indica alta robustez
+   - Desviación estándar alta sugiere sensibilidad a inicialización
+
+4. **Comparación con Valores Teóricos**:
+   - Los parámetros K0 y A pueden validarse con valores de referencia
+   - R0 y α son estimados (no hay medición directa de temperatura)
+   - Error porcentual < 10% indica identificación exitosa
+
+**Diagnóstico de Problemas Comunes:**
+
+| Síntoma | Posible Causa | Solución |
+|---------|---------------|----------|
+| MSE estancado en valor alto | Mínimo local, población pequeña | Aumentar `pop_size`, cambiar algoritmo |
+| Convergencia muy lenta | Parámetros conservadores | Ajustar F, CR (DE) o tasas de mutación |
+| Resultados inconsistentes | Sensibilidad a ruido en datos | Aumentar `smoothing_window`, validar datos |
+| Parámetros fuera de rango físico | Bounds incorrectos | Revisar límites en configuración |
+| Simulación falla (fitness = 1e10) | Parámetros causan inestabilidad numérica | Ajustar tolerancias ODE, revisar bounds |
+
+**Visualizaciones Generadas:**
+
+1. **Curvas de Convergencia** (`convergence_*.png`): Muestra la evolución del mejor fitness vs. iteraciones
+   - Línea descendente suave indica búsqueda eficiente
+   - Línea con muchas mesetas sugiere dificultad en escapar mínimos locales
+
+2. **Boxplot de Comparación** (`comparison_boxplot.png`): Compara distribución de fitness entre algoritmos
+   - Caja más baja = mejor desempeño promedio
+   - Caja más pequeña = mayor robustez
+
+3. **Visualización de Solución** (`best_solution.png`): Compara trayectorias simuladas vs. reales
+   - Superposición cercana indica buen ajuste
+   - Divergencias revelan limitaciones del modelo o ruido en datos
 
 ### Configuración Personalizada
 
@@ -662,6 +806,97 @@ Ejecutar con configuración personalizada:
 
 ```bash
 python scripts/run_benchmark.py --config my_config.yaml
+```
+
+### Mejores Prácticas para Optimización Metaheurística
+
+**1. Configuración de Población e Iteraciones:**
+
+La relación entre población y número de iteraciones afecta el presupuesto total de evaluaciones:
+
+```
+Evaluaciones Totales ≈ pop_size × max_iter
+```
+
+Recomendaciones por complejidad del problema:
+- **Problema simple (3 parámetros)**: `pop_size=30`, `max_iter=50-100`
+- **Problema moderado (4 parámetros + R(t))**: `pop_size=50`, `max_iter=100-200`
+- **Problema complejo (muchos parámetros)**: `pop_size=100`, `max_iter=200-500`
+
+**2. Ajuste de Hiperparámetros por Algoritmo:**
+
+| Algoritmo | Parámetro Crítico | Valor Recomendado | Efecto |
+|-----------|-------------------|-------------------|---------|
+| DE | F (mutation factor) | 0.5-0.9 | Mayor F → más exploración |
+| DE | CR (crossover rate) | 0.7-0.95 | Mayor CR → más diversidad |
+| GWO | a (linearly decreased) | 2→0 | Controla exploración vs explotación |
+| ABC | limit (abandonment) | pop_size × dim | Mayor limit → más persistencia |
+| GA | crossover_prob | 0.7-0.9 | Mayor prob → más recombinación |
+| GA | mutation_prob | 0.1-0.3 | Mayor prob → más diversidad |
+
+**3. Estrategias de Aceleración:**
+
+Para problemas con datos experimentales largos (>10,000 muestras):
+
+- **Submuestreo**: `subsample_factor=10-50` reduce tiempo ~10-50x
+- **Evaluación paralela**: Automática si múltiples núcleos disponibles
+- **Early stopping**: Configurar tolerancia de convergencia
+
+```python
+problema = ParameterBenchmark(
+    data_path='data/datos_levitador.txt',
+    subsample_factor=20,  # Usa solo 1 de cada 20 muestras
+    verbose=True
+)
+```
+
+**4. Reproducibilidad:**
+
+Siempre usar semillas aleatorias para experimentos reproducibles:
+
+```python
+optimizer = DifferentialEvolution(
+    problema,
+    pop_size=30,
+    max_iter=100,
+    random_seed=42  # ← Garantiza resultados reproducibles
+)
+```
+
+Para múltiples trials con diferentes semillas:
+```python
+for trial in range(5):
+    seed = base_seed + trial
+    optimizer = DifferentialEvolution(problema, random_seed=seed)
+    best_sol, best_fit = optimizer.optimize()
+```
+
+**5. Validación de Resultados:**
+
+Después de la optimización, siempre:
+
+1. **Verificar convergencia**: Revisar curva de convergencia para detectar estancamiento
+2. **Validar físicamente**: Los parámetros deben estar en rangos razonables
+3. **Comparar múltiples runs**: Ejecutar 5-10 trials para evaluar robustez
+4. **Visualizar ajuste**: Comparar trayectorias simuladas vs. reales
+5. **Analizar residuales**: Verificar que los errores sean aleatorios, no sistemáticos
+
+**6. Debugging de Optimización:**
+
+Si el algoritmo no converge:
+
+```python
+# Activar modo verbose para ver progreso detallado
+optimizer = DifferentialEvolution(problema, verbose=True)
+
+# Revisar historial de convergencia
+history = optimizer.get_convergence_curve()
+print(f"Mejora final: {history[0]} → {history[-1]}")
+
+# Verificar que fitness se evalúa correctamente
+test_solution = [0.036, 0.005, 2.5, 0.004]  # Valores razonables
+fitness = problema.fitness_function(test_solution)
+print(f"Test fitness: {fitness}")  # Debe ser finito, no 1e10
 ```
 
 ---
