@@ -222,16 +222,6 @@ levitador-benchmark/
 ```
 
 ### Algoritmos Disponibles
-│   ├── default.yaml
-│   ├── quick_test.yaml
-│   └── full_comparison.yaml
-├── scripts/
-│   └── run_benchmark.py       # Script principal de benchmark
-└── notebooks/
-    └── parameter_identification_demo.ipynb
-```
-
-### Algoritmos Disponibles
 
 Los siguientes algoritmos metaheurísticos están implementados y optimizados para la identificación de parámetros:
 
