@@ -28,42 +28,46 @@ A diferencia de funciones de prueba sintéticas (Rosenbrock, Rastrigin, etc.), e
 
 ## 🎯 Pipeline de Dos Fases
 
-### Fase 1: Identificación de Parámetros Físicos
+### Fase 1: Identificación de Parámetros Físicos (6D)
 
-**Objetivo:** Identificar los parámetros físicos del sistema usando metaheurísticas.
+**Objetivo:** Identificar los **6 parámetros físicos** del sistema usando metaheurísticas (DE, PSO, GWO, etc.).
 
 **Parámetros a optimizar:**
-- `K0`: Numerador de inductancia [H]
-- `A`: Parámetro geométrico [m]  
-- `R0`: Resistencia base [Ω]
-- `α`: Coeficiente de temperatura [1/°C]
+
+| Parámetro | Símbolo | Unidad | Referencia Santana | Bounds |
+|-----------|---------|--------|-------------------|--------|
+| Inductancia base | `k0` | mH | 3.5 | 1-8 |
+| Coeficiente inductancia | `k` | mH | 32 | 20-50 |
+| Parámetro geométrico | `a` | mm | 5.2 | 3-8 |
+| Masa del imán | `m` | g | 9.0 | 8.9-9.1 |
+| Resistencia base | `R0` | Ω | 2.2 | 2.0-3.5 |
+| Deriva térmica | `α` | Ω/s | 0 | ±0.002 |
 
 **Modelo Físico:**
 
 Inductancia (función no lineal de la posición):
 ```
-L(y) = K0 / (1 + y/A)
+L(y) = k0 + k / (1 + y/a)
 ```
 
-Resistencia (estimada sin sensor de temperatura):
+Resistencia con deriva térmica:
 ```
-R(t) ≈ R0 * (1 + α*ΔT(t))
-```
-
-Donde ΔT(t) se aproxima mediante calentamiento Joule: ΔT ∝ ∫ i²(t) dt
-
-**Ecuaciones del sistema:**
-- Mecánica: `m·ÿ = (1/2)·(∂L/∂y)·i² + m·g`
-- Eléctrica: `L(y)·(di/dt) + (∂L/∂y)·ẏ·i + R(t)·i = u`
-
-**Estimación de R(t) vía Ley de Kirchhoff:**
-
-Sin sensor de temperatura, la resistencia se estima usando:
-```
-R_est(t) = (u(t) - dφ̂(t)/dt) / i(t)
+R(t) = R0 + α·t
 ```
 
-donde `φ̂(t) = L(y(t)) · i(t)` es el flujo magnético estimado.
+**Ecuaciones Euler-Lagrange:**
+- **Mecánica (Newton):** `m·ÿ = F_mag - m·g` donde `F_mag = (1/2)·i²·|∂L/∂y|`
+- **Eléctrica (Kirchhoff):** `u = R(t)·i + L·(di/dt) + i·(∂L/∂y)·(dy/dt)`
+
+**Funciones Fitness disponibles:**
+
+1. **`energy_balance`**: Balance de potencia + Newton + Kirchhoff (para identificar masa)
+2. **`pinn_mejorado`**: Normalización por varianza + "Juez de Hierro" (fuerza = peso)
+
+**Dataset:**
+- `mega_controlled_dataset.txt`: 19,534 muestras de levitación controlada (12 fuentes)
+
+**Notebook Colab:** `KAN_PINN_JAX_GPU_Optimization.ipynb` (9 metaheurísticos en JAX/GPU)
 
 ### Fase 2: Entrenamiento KAN-PINN (Observador Sensorless)
 
