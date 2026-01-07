@@ -173,11 +173,17 @@ pip install torch
 Para ejecutar rápidamente un benchmark completo de todos los algoritmos:
 
 ```bash
-# Ejecutar benchmark completo con dataset por defecto (todos los algoritmos, 5 trials)
+# Ejecutar benchmark completo con dataset por defecto (8 algoritmos, 5 trials)
 python scripts/run_full_optimization.py
 
-# Ejecutar con mega_controlled_dataset.txt para mayor robustez (19,534 muestras)
-python scripts/run_full_optimization.py --data data/mega_controlled_dataset.txt --trials 10
+# Ejecutar con más trials para mejor análisis estadístico
+python scripts/run_full_optimization.py --trials 10 --seed 42
+
+# Para usar mega_controlled_dataset.txt, usar optimize_parameters.py
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC HBA SOA Tianji GA RandomSearch \
+    --trials 10
 
 # Ver resultados generados
 ls -l results/optimization_comparison/
@@ -195,8 +201,9 @@ Para ejecutar el pipeline completo de identificación + entrenamiento:
 python scripts/pipeline_identificacion_kanpinn.py --config config/pipeline_config.yaml
 
 # Solo Fase 1: Identificación con mega_controlled_dataset
-python scripts/pipeline_identificacion_kanpinn.py --phase1-only \
-    --data data/mega_controlled_dataset.txt
+python scripts/optimize_parameters.py \
+    --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC --trials 10
 
 # Solo Fase 2: Entrenamiento KAN-PINN con parámetros identificados
 python scripts/pipeline_identificacion_kanpinn.py --phase2-only \
@@ -428,8 +435,10 @@ python scripts/optimize_parameters.py \
     --output results/my_optimization
 
 # Benchmark completo con mega_controlled_dataset (19,534 muestras)
-python scripts/run_full_optimization.py \
+# Usar optimize_parameters.py con todos los algoritmos
+python scripts/optimize_parameters.py \
     --data data/mega_controlled_dataset.txt \
+    --algorithms DE GWO ABC HBA SOA Tianji GA RandomSearch \
     --trials 10
 ```
 
