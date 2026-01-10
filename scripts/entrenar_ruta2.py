@@ -10,6 +10,9 @@ Autor: Cascade
 Fecha: Enero 2026
 """
 
+import warnings
+warnings.filterwarnings('ignore', message='.*lr_scheduler.step.*before.*optimizer.step.*')
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
