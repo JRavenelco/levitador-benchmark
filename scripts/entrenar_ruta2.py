@@ -354,8 +354,14 @@ def main():
     df = load_data()
 
     if torch.cuda.is_available():
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        # New TF32 API (PyTorch 2.x)
+        if hasattr(torch.backends.cuda.matmul, 'fp32_precision'):
+            torch.backends.cuda.matmul.fp32_precision = 'tf32'
+            torch.backends.cudnn.conv.fp32_precision = 'tf32'
+        else:
+            # Fallback for older PyTorch
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
         torch.backends.cudnn.benchmark = True
     
     # Normalización (Estadísticas Globales)
