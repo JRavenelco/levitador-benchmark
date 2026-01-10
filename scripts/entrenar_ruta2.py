@@ -394,7 +394,7 @@ def main():
     opt_flux = optim.AdamW(flux_model.parameters(), lr=1e-3)
     sched_flux = optim.lr_scheduler.CosineAnnealingLR(opt_flux, T_max=EPOCHS_STAGE1)
 
-    scaler_flux = torch.cuda.amp.GradScaler(enabled=(USE_AMP and torch.cuda.is_available()))
+    scaler_flux = torch.amp.GradScaler('cuda', enabled=(USE_AMP and torch.cuda.is_available()))
     
     for epoch in range(EPOCHS_STAGE1):
         flux_model.train()
@@ -412,7 +412,7 @@ def main():
             u_in = (u_phys - stats['u_mean']) / stats['u_std']
             i_in = (i_phys - stats['i_mean']) / stats['i_std']
 
-            with torch.cuda.amp.autocast(enabled=(USE_AMP and torch.cuda.is_available())):
+            with torch.amp.autocast('cuda', enabled=(USE_AMP and torch.cuda.is_available())):
                 # Input: [u, i]
                 x_in = torch.cat([u_in, i_in], dim=-1)
                 phi_pred = flux_model(x_in)
@@ -468,7 +468,7 @@ def main():
     opt_pos = optim.AdamW(pos_model.parameters(), lr=1e-3)
     sched_pos = optim.lr_scheduler.CosineAnnealingLR(opt_pos, T_max=EPOCHS_STAGE2)
 
-    scaler_pos = torch.cuda.amp.GradScaler(enabled=(USE_AMP and torch.cuda.is_available()))
+    scaler_pos = torch.amp.GradScaler('cuda', enabled=(USE_AMP and torch.cuda.is_available()))
     
     for epoch in range(EPOCHS_STAGE2):
         pos_model.train()
@@ -492,7 +492,7 @@ def main():
                 x_flux = torch.cat([u_in, i_in], dim=-1)
                 phi_est_pred = flux_model(x_flux)
 
-            with torch.cuda.amp.autocast(enabled=(USE_AMP and torch.cuda.is_available())):
+            with torch.amp.autocast('cuda', enabled=(USE_AMP and torch.cuda.is_available())):
                 # Input Stage 2: [u, i, phi_est]
                 x_pos = torch.cat([u_in, i_in, phi_est_pred], dim=-1)
                 y_pred = pos_model(x_pos)
