@@ -10,9 +10,9 @@
 
 Muestra del funcionamiento del levitador con control Híbrido HiPPO-KAN y visualización en tiempo real:
 
-[![Ver Video](https://img.shields.io/badge/Ver_Video-Proyecto_Final-red?style=for-the-badge&logo=youtube)](https://github.com/JRavenelco/levitador-benchmark/raw/main/videos/proyecto_final.mp4)
+[![Ver Video](https://img.shields.io/badge/Ver_Video-Proyecto_Final-red?style=for-the-badge&logo=youtube)](https://github.com/JRavenelco/levitador-benchmark/blob/main/videos/proyecto_final.mp4)
 
-> **Nota:** Si el video no carga directamente, puedes [descargarlo aquí](https://github.com/JRavenelco/levitador-benchmark/raw/main/videos/proyecto_final.mp4).
+> **Nota:** El video ha sido optimizado para visualización web. Haz clic en el botón para reproducirlo.
 
 ---
 
