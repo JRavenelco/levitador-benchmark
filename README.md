@@ -6,6 +6,14 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-pending-lightgrey.svg)]()
 
+## 🎥 Demostración en Video
+
+Muestra del funcionamiento del levitador con control Híbrido HiPPO-KAN y visualización en tiempo real:
+
+[![Ver Video](https://img.shields.io/badge/Ver_Video-Proyecto_Final-red?style=for-the-badge&logo=youtube)](https://github.com/JRavenelco/levitador-benchmark/blob/main/videos/proyecto_final.mp4)
+
+> **Nota:** Haz clic en el botón para ver la demostración en el reproductor de GitHub.
+
 ---
 
 ## 📋 Descripción
